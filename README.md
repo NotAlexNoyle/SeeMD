@@ -36,28 +36,6 @@ A lightweight GTK 3 markdown viewer and editor for desktop Linux. It is ideal as
 
 Code blocks currently support a beta version of keyword highlighting for fenced languages `c`, `java`, and `python`.
 
-## Installation
-
-### Arch Linux (AUR)
-
-https://aur.archlinux.org/packages/seemd
-
-### Debian/Ubuntu (.deb)
-
-Install a built `.deb` package with:
-
-```bash
-sudo apt install ./seemd_*.deb
-```
-
-### Fedora/RHEL (.rpm)
-
-Install a built `.rpm` package with:
-
-```bash
-sudo dnf install ./seemd-*.rpm
-```
-
 ## Usage
 
 Run `seemd` to start the application.
@@ -130,11 +108,6 @@ sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev
 sudo dnf install gtk3-devel webkit2gtk4.1-devel
 ```
 
-## Packaging Templates
-
-- Arch: `packaging/arch/PKGBUILD`
-- Debian: `packaging/deb/control.in`
-- RPM: `packaging/rpm/seemd.spec.in`
 ## License
 
 Released under the [MIT License](LICENSE).
