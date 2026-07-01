@@ -76,6 +76,84 @@ static const MarkydKeywordGroup py_groups[] = {
     {MARKYD_TAG_CODE_KW_C, py_kw_group_c, G_N_ELEMENTS(py_kw_group_c)},
 };
 
+static const gchar *const js_kw_group_a[] = {
+    "await", "break", "case",    "catch",      "continue", "default",
+    "do",    "else",  "finally", "for",        "if",       "in",
+    "instanceof", "of", "return", "switch",    "throw",    "try",
+    "while", "with",  "yield",
+};
+
+static const gchar *const js_kw_group_b[] = {
+    "async",  "class",  "const",   "debugger", "delete", "export",
+    "extends","function","import", "let",      "new",    "static",
+    "super",  "this",   "typeof",  "var",      "void",
+};
+
+static const gchar *const js_kw_group_c[] = {
+    "false", "Infinity", "NaN", "null", "true", "undefined",
+};
+
+static const MarkydKeywordGroup js_groups[] = {
+    {MARKYD_TAG_CODE_KW_A, js_kw_group_a, G_N_ELEMENTS(js_kw_group_a)},
+    {MARKYD_TAG_CODE_KW_B, js_kw_group_b, G_N_ELEMENTS(js_kw_group_b)},
+    {MARKYD_TAG_CODE_KW_C, js_kw_group_c, G_N_ELEMENTS(js_kw_group_c)},
+};
+
+static const gchar *const kotlin_kw_group_a[] = {
+    "break",  "catch", "continue", "do",    "else",  "finally",
+    "for",    "if",    "in",       "is",    "return","throw",
+    "try",    "when",  "while",
+};
+
+static const gchar *const kotlin_kw_group_b[] = {
+    "abstract",  "actual",     "annotation", "as",         "by",
+    "class",     "companion",  "const",      "constructor","crossinline",
+    "data",      "enum",       "expect",     "external",   "final",
+    "fun",       "import",     "infix",      "init",       "inline",
+    "inner",     "interface",  "internal",   "lateinit",   "noinline",
+    "object",    "open",       "operator",   "out",        "override",
+    "package",   "private",    "protected",  "public",     "reified",
+    "sealed",    "super",      "suspend",    "tailrec",    "this",
+    "typealias", "val",        "var",        "vararg",     "where",
+};
+
+static const gchar *const kotlin_kw_group_c[] = {
+    "false", "null", "true", "Any",     "Boolean", "Byte",  "Char",
+    "Double","Float","Int",  "Long",    "Nothing", "Short", "String",
+    "Unit",
+};
+
+static const MarkydKeywordGroup kotlin_groups[] = {
+    {MARKYD_TAG_CODE_KW_A, kotlin_kw_group_a, G_N_ELEMENTS(kotlin_kw_group_a)},
+    {MARKYD_TAG_CODE_KW_B, kotlin_kw_group_b, G_N_ELEMENTS(kotlin_kw_group_b)},
+    {MARKYD_TAG_CODE_KW_C, kotlin_kw_group_c, G_N_ELEMENTS(kotlin_kw_group_c)},
+};
+
+static const gchar *const bash_kw_group_a[] = {
+    "case", "do",     "done", "elif",   "else", "esac", "fi",
+    "for",  "function","if",  "in",     "select","then", "time",
+    "until","while",
+};
+
+static const gchar *const bash_kw_group_b[] = {
+    "alias",   "bg",     "break",    "cd",      "command",  "continue",
+    "declare", "echo",   "eval",     "exec",    "exit",     "export",
+    "getopts", "hash",   "jobs",     "kill",    "let",      "local",
+    "printf",  "pwd",    "read",     "readonly","return",   "set",
+    "shift",   "source", "test",     "trap",    "type",     "typeset",
+    "ulimit",  "umask",  "unalias",  "unset",   "wait",
+};
+
+static const gchar *const bash_kw_group_c[] = {
+    "false", "true",
+};
+
+static const MarkydKeywordGroup bash_groups[] = {
+    {MARKYD_TAG_CODE_KW_A, bash_kw_group_a, G_N_ELEMENTS(bash_kw_group_a)},
+    {MARKYD_TAG_CODE_KW_B, bash_kw_group_b, G_N_ELEMENTS(bash_kw_group_b)},
+    {MARKYD_TAG_CODE_KW_C, bash_kw_group_c, G_N_ELEMENTS(bash_kw_group_c)},
+};
+
 static gboolean is_ascii_identifier_char(gchar c) {
   return (c == '_') || g_ascii_isalnum((guchar)c);
 }
@@ -554,23 +632,43 @@ static void scan_line_c_like(const MarkydLanguageHighlight *language,
     }
 
     if (in_block_comment) {
-      if (p[0] == '*' && p[1] == '/') {
-        p += 2;
-        char_index += 2;
-        in_block_comment = FALSE;
-        continue;
+      gint start_char_index = char_index;
+      while (*p) {
+        if (p[0] == '*' && p[1] == '/') {
+          p += 2;
+          char_index += 2;
+          in_block_comment = FALSE;
+          break;
+        }
+        advance_utf8_char(&p, &char_index);
       }
-      advance_utf8_char(&p, &char_index);
+      on_token(start_char_index, char_index, MARKYD_TAG_CODE_COMMENT, user_data);
       continue;
     }
 
     if (p[0] == '/' && p[1] == '/') {
+      gint start_char_index = char_index;
+      while (*p) {
+        advance_utf8_char(&p, &char_index);
+      }
+      on_token(start_char_index, char_index, MARKYD_TAG_CODE_COMMENT, user_data);
       break;
     }
     if (p[0] == '/' && p[1] == '*') {
+      gint start_char_index = char_index;
       p += 2;
       char_index += 2;
       in_block_comment = TRUE;
+      while (*p) {
+        if (p[0] == '*' && p[1] == '/') {
+          p += 2;
+          char_index += 2;
+          in_block_comment = FALSE;
+          break;
+        }
+        advance_utf8_char(&p, &char_index);
+      }
+      on_token(start_char_index, char_index, MARKYD_TAG_CODE_COMMENT, user_data);
       continue;
     }
     if (allow_java_text_blocks && starts_with_triple_quote(p)) {
@@ -704,6 +802,11 @@ static void scan_line_python(const MarkydLanguageHighlight *language,
     }
 
     if (p[0] == '#') {
+      gint start_char_index = char_index;
+      while (*p) {
+        advance_utf8_char(&p, &char_index);
+      }
+      on_token(start_char_index, char_index, MARKYD_TAG_CODE_COMMENT, user_data);
       break;
     }
 
@@ -827,11 +930,120 @@ static void scan_line_python(const MarkydLanguageHighlight *language,
   }
 }
 
+/* Bash: '#' comments (position-sensitive), single/double-quoted strings, and
+ * keyword/builtin identifiers. No multi-line state is tracked. */
+static void scan_line_bash(const MarkydLanguageHighlight *language,
+                           const gchar *line, MarkydCodeScanState *state,
+                           MarkydCodeTokenCallback on_token,
+                           gpointer user_data) {
+  const gchar *p;
+  gint char_index = 0;
+  gchar prev = '\0';
+
+  if (!language || !line || !state || !on_token) {
+    return;
+  }
+
+  p = line;
+  while (*p) {
+    /* A '#' starts a comment only at the start of a word (line start or after
+     * whitespace), so tokens like "$#" and "a#b" are left alone. */
+    if (p[0] == '#' && (p == line || prev == ' ' || prev == '\t')) {
+      gint start_char_index = char_index;
+      while (*p) {
+        advance_utf8_char(&p, &char_index);
+      }
+      on_token(start_char_index, char_index, MARKYD_TAG_CODE_COMMENT, user_data);
+      break;
+    }
+
+    if (p[0] == '\'') {
+      gint start_char_index = char_index;
+      p++;
+      char_index++;
+      while (*p && p[0] != '\'') {
+        advance_utf8_char(&p, &char_index);
+      }
+      if (*p == '\'') {
+        p++;
+        char_index++;
+      }
+      on_token(start_char_index, char_index, MARKYD_TAG_CODE_LITERAL, user_data);
+      prev = '\'';
+      continue;
+    }
+
+    if (p[0] == '"') {
+      gint start_char_index = char_index;
+      p++;
+      char_index++;
+      while (*p) {
+        if (p[0] == '\\' && p[1]) {
+          p++;
+          char_index++;
+          advance_utf8_char(&p, &char_index);
+          continue;
+        }
+        if (p[0] == '"') {
+          p++;
+          char_index++;
+          break;
+        }
+        advance_utf8_char(&p, &char_index);
+      }
+      on_token(start_char_index, char_index, MARKYD_TAG_CODE_LITERAL, user_data);
+      prev = '"';
+      continue;
+    }
+
+    {
+      gunichar c = g_utf8_get_char(p);
+      const gchar *next = g_utf8_next_char(p);
+
+      if (is_identifier_start(c)) {
+        const gchar *token_start = p;
+        gint start_char_index = char_index;
+
+        p = next;
+        char_index++;
+        while (*p) {
+          gunichar tc = g_utf8_get_char(p);
+          const gchar *tnext = g_utf8_next_char(p);
+          if (!is_identifier_char(tc)) {
+            break;
+          }
+          p = tnext;
+          char_index++;
+        }
+
+        gsize token_len = (gsize)(p - token_start);
+        const gchar *tag_name =
+            lookup_keyword_tag(language, token_start, token_len);
+        if (tag_name) {
+          on_token(start_char_index, char_index, tag_name, user_data);
+        }
+        prev = 'a';
+        continue;
+      }
+    }
+
+    prev = *p;
+    advance_utf8_char(&p, &char_index);
+  }
+}
+
 static const MarkydLanguageHighlight languages[] = {
     {"c", c_groups, G_N_ELEMENTS(c_groups), scan_line_c},
     {"java", java_groups, G_N_ELEMENTS(java_groups), scan_line_java},
     {"python", py_groups, G_N_ELEMENTS(py_groups), scan_line_python},
     {"py", py_groups, G_N_ELEMENTS(py_groups), scan_line_python},
+    {"javascript", js_groups, G_N_ELEMENTS(js_groups), scan_line_c},
+    {"js", js_groups, G_N_ELEMENTS(js_groups), scan_line_c},
+    {"kotlin", kotlin_groups, G_N_ELEMENTS(kotlin_groups), scan_line_java},
+    {"kt", kotlin_groups, G_N_ELEMENTS(kotlin_groups), scan_line_java},
+    {"bash", bash_groups, G_N_ELEMENTS(bash_groups), scan_line_bash},
+    {"sh", bash_groups, G_N_ELEMENTS(bash_groups), scan_line_bash},
+    {"shell", bash_groups, G_N_ELEMENTS(bash_groups), scan_line_bash},
 };
 
 const MarkydLanguageHighlight *

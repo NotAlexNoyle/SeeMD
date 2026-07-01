@@ -7,6 +7,7 @@
 #define MARKYD_TAG_CODE_KW_B "code_kw_b"
 #define MARKYD_TAG_CODE_KW_C "code_kw_c"
 #define MARKYD_TAG_CODE_LITERAL "code_literal"
+#define MARKYD_TAG_CODE_COMMENT "code_comment"
 
 typedef struct _MarkydKeywordGroup {
   const gchar *tag_name;

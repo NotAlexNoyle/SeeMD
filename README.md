@@ -34,7 +34,7 @@ A lightweight GTK 3 markdown viewer and editor for desktop Linux. It is ideal as
 | `<strong>HTML</strong>` | GitHub-style inline and block HTML rendered in preview mode |
 | `---` | Horizontal rule |
 
-Code blocks currently support a beta version of keyword highlighting for fenced languages `c`, `java`, and `python`.
+Fenced code blocks are syntax-highlighted GitHub-style in the preview for the languages `c`, `java`, `javascript`, `kotlin`, `python`, and `bash`, covering keywords, strings, numbers, and comments.
 
 ## Usage
 

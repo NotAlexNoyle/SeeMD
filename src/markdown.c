@@ -2517,6 +2517,9 @@ void markdown_init_tags(GtkTextBuffer *buffer) {
                              PANGO_WEIGHT_BOLD, NULL);
   gtk_text_buffer_create_tag(buffer, MARKYD_TAG_CODE_LITERAL, "family",
                              "Monospace", "foreground", config->h3_color, NULL);
+  gtk_text_buffer_create_tag(buffer, MARKYD_TAG_CODE_COMMENT, "family",
+                             "Monospace", "foreground", "#7F848E", "style",
+                             PANGO_STYLE_ITALIC, NULL);
 
   gtk_text_buffer_create_tag(buffer, TAG_QUOTE, "left-margin", 24, "style",
                              PANGO_STYLE_ITALIC, "foreground", "#5C6370",
@@ -2805,7 +2808,14 @@ typedef struct {
   gchar *image_src;
   gchar *image_title;
   GString *image_alt;
+  gboolean in_code_block;
+  GString *code_text;
+  const MarkydLanguageHighlight *code_language;
 } GithubHtmlCtx;
+
+static void github_html_append_highlighted_code(
+    GString *target, const gchar *code,
+    const MarkydLanguageHighlight *language);
 
 static GString *github_html_target(GithubHtmlCtx *ctx) {
   return (ctx && ctx->heading_html) ? ctx->heading_html : (ctx ? ctx->out : NULL);
@@ -3084,6 +3094,13 @@ static int github_html_enter_block(MD_BLOCKTYPE type, void *detail,
     } else {
       github_html_append(ctx, "<pre><code>");
     }
+    ctx->in_code_block = TRUE;
+    ctx->code_language = markyd_code_lookup_language(language);
+    if (ctx->code_text) {
+      g_string_set_size(ctx->code_text, 0);
+    } else {
+      ctx->code_text = g_string_new(NULL);
+    }
     g_free(class_attr);
     g_free(class_name);
     g_free(language);
@@ -3185,6 +3202,16 @@ static int github_html_leave_block(MD_BLOCKTYPE type, void *detail,
     break;
 
   case MD_BLOCK_CODE:
+    if (ctx->in_code_block) {
+      github_html_append_highlighted_code(
+          github_html_target(ctx),
+          ctx->code_text ? ctx->code_text->str : "", ctx->code_language);
+      ctx->in_code_block = FALSE;
+      ctx->code_language = NULL;
+      if (ctx->code_text) {
+        g_string_set_size(ctx->code_text, 0);
+      }
+    }
     github_html_append(ctx, "</code></pre>\n");
     break;
 
@@ -3365,12 +3392,123 @@ static int github_html_leave_span(MD_SPANTYPE type, void *detail,
   return 0;
 }
 
+/* Map an internal highlight tag name to a GitHub Primer CSS class. */
+static const gchar *github_html_code_token_class(const gchar *tag) {
+  if (!tag) {
+    return NULL;
+  }
+  if (strcmp(tag, MARKYD_TAG_CODE_KW_A) == 0 ||
+      strcmp(tag, MARKYD_TAG_CODE_KW_B) == 0) {
+    return "pl-k";
+  }
+  if (strcmp(tag, MARKYD_TAG_CODE_KW_C) == 0) {
+    return "pl-c1";
+  }
+  if (strcmp(tag, MARKYD_TAG_CODE_LITERAL) == 0) {
+    return "pl-s";
+  }
+  if (strcmp(tag, MARKYD_TAG_CODE_COMMENT) == 0) {
+    return "pl-c";
+  }
+  return NULL;
+}
+
+typedef struct {
+  GString *target;
+  const gchar *line;
+  gint cursor_char;
+} GithubHtmlCodeLineCtx;
+
+/* Token callback: escape the gap before the token, then wrap the token in a
+ * span. Ranges are non-overlapping and delivered left-to-right. */
+static void github_html_code_token(gint start_char_offset, gint end_char_offset,
+                                   const gchar *tag_name, gpointer user_data) {
+  GithubHtmlCodeLineCtx *lc = (GithubHtmlCodeLineCtx *)user_data;
+  const gchar *cur;
+  const gchar *sp;
+  const gchar *ep;
+  const gchar *cls;
+
+  if (!lc || !lc->target || start_char_offset < lc->cursor_char ||
+      end_char_offset <= start_char_offset) {
+    return;
+  }
+
+  cur = g_utf8_offset_to_pointer(lc->line, lc->cursor_char);
+  sp = g_utf8_offset_to_pointer(lc->line, start_char_offset);
+  ep = g_utf8_offset_to_pointer(lc->line, end_char_offset);
+
+  if (sp > cur) {
+    github_html_append_escaped_len(lc->target, cur, (gsize)(sp - cur));
+  }
+
+  cls = github_html_code_token_class(tag_name);
+  if (cls) {
+    g_string_append_printf(lc->target, "<span class=\"%s\">", cls);
+  }
+  github_html_append_escaped_len(lc->target, sp, (gsize)(ep - sp));
+  if (cls) {
+    g_string_append(lc->target, "</span>");
+  }
+
+  lc->cursor_char = end_char_offset;
+}
+
+/* Emit code-block contents into target, syntax-highlighted when the language
+ * is recognized. Falls back to plain escaped text otherwise. */
+static void github_html_append_highlighted_code(
+    GString *target, const gchar *code,
+    const MarkydLanguageHighlight *language) {
+  MarkydCodeScanState state;
+  const gchar *line_start;
+
+  if (!target || !code) {
+    return;
+  }
+  if (!language) {
+    github_html_append_escaped_len(target, code, strlen(code));
+    return;
+  }
+
+  markyd_code_scan_state_reset(&state);
+  line_start = code;
+  for (;;) {
+    const gchar *nl = strchr(line_start, '\n');
+    gsize line_len = nl ? (gsize)(nl - line_start) : strlen(line_start);
+    gchar *line = g_strndup(line_start, line_len);
+    GithubHtmlCodeLineCtx lc = {target, line, 0};
+    const gchar *tail;
+
+    markyd_code_scan_line(language, line, &state, github_html_code_token, &lc);
+    tail = g_utf8_offset_to_pointer(line, lc.cursor_char);
+    github_html_append_escaped_len(target, tail, strlen(tail));
+    g_free(line);
+
+    if (!nl) {
+      break;
+    }
+    g_string_append_c(target, '\n');
+    line_start = nl + 1;
+  }
+}
+
 static void github_html_append_text(GithubHtmlCtx *ctx, MD_TEXTTYPE type,
                                     const MD_CHAR *text, MD_SIZE size) {
   GString *target;
   gchar *plain;
 
   if (!ctx) {
+    return;
+  }
+
+  if (ctx->in_code_block && ctx->code_text) {
+    if (type == MD_TEXT_BR || type == MD_TEXT_SOFTBR) {
+      g_string_append_c(ctx->code_text, '\n');
+    } else {
+      gchar *code_plain = md_text_to_utf8(type, text, size);
+      g_string_append(ctx->code_text, code_plain);
+      g_free(code_plain);
+    }
     return;
   }
 
@@ -3450,6 +3588,10 @@ static gchar *github_markdown_css(gboolean dark) {
   const gchar *table_alt = dark ? "#161b22" : "#f6f8fa";
   const gchar *kbd_bg = dark ? "#161b22" : "#f6f8fa";
   const gchar *kbd_shadow = dark ? "#6e7681" : "#afb8c1";
+  const gchar *hl_kw = dark ? "#ff7b72" : "#cf222e";
+  const gchar *hl_const = dark ? "#79c0ff" : "#0550ae";
+  const gchar *hl_str = dark ? "#a5d6ff" : "#0a3069";
+  const gchar *hl_com = dark ? "#8b949e" : "#6e7781";
 
   g_string_append_printf(css,
                          "html,body{margin:0;background:%s;color:%s;}\n",
@@ -3534,6 +3676,12 @@ static gchar *github_markdown_css(gboolean dark) {
                          "background-color:transparent;border:0;}\n",
                          code_bg, pre_bg);
   g_string_append_printf(css,
+                         ".markdown-body pre .pl-k{color:%s;}"
+                         ".markdown-body pre .pl-c1{color:%s;}"
+                         ".markdown-body pre .pl-s{color:%s;}"
+                         ".markdown-body pre .pl-c{color:%s;}\n",
+                         hl_kw, hl_const, hl_str, hl_com);
+  g_string_append_printf(css,
                          ".markdown-body kbd{display:inline-block;padding:3px 5px;font:11px ui-monospace,"
                          "SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace;"
                          "line-height:10px;color:%s;vertical-align:middle;background-color:%s;"
@@ -3568,6 +3716,7 @@ static gchar *github_html_render_body(const gchar *source) {
   ctx.block_stack = g_array_new(FALSE, FALSE, sizeof(GithubHtmlBlockState));
   ctx.list_stack = g_array_new(FALSE, FALSE, sizeof(GithubHtmlListState));
   ctx.image_alt = g_string_new(NULL);
+  ctx.code_text = g_string_new(NULL);
 
   normalized_source = normalize_markdown_source(source ? source : "");
 
@@ -3602,6 +3751,9 @@ static gchar *github_html_render_body(const gchar *source) {
   g_free(ctx.image_title);
   if (ctx.image_alt) {
     g_string_free(ctx.image_alt, TRUE);
+  }
+  if (ctx.code_text) {
+    g_string_free(ctx.code_text, TRUE);
   }
   g_array_free(ctx.list_stack, TRUE);
   g_array_free(ctx.block_stack, TRUE);
