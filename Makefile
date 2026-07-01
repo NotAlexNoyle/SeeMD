@@ -1,6 +1,7 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -O2 -g `pkg-config --cflags gtk+-3.0`
-LDFLAGS = `pkg-config --libs gtk+-3.0`
+PKGS = gtk+-3.0 webkit2gtk-4.1
+CFLAGS = -Wall -Wextra -O2 -g `pkg-config --cflags $(PKGS)`
+LDFLAGS = `pkg-config --libs $(PKGS)`
 
 SRCDIR = src
 OBJDIR = obj

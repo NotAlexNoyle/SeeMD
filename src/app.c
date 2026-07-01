@@ -156,6 +156,45 @@ gboolean markyd_app_open_file(MarkydApp *self, const gchar *path) {
   return TRUE;
 }
 
+gboolean markyd_app_save_file(MarkydApp *self, const gchar *path) {
+  gchar *content;
+  GError *error = NULL;
+
+  if (!self || !self->editor || !path || path[0] == '\0') {
+    return FALSE;
+  }
+
+  content = markyd_editor_get_content(self->editor);
+  if (!g_file_set_contents(path, content ? content : "", -1, &error)) {
+    if (error) {
+      g_printerr("Failed to save markdown file '%s': %s\n", path, error->message);
+      g_error_free(error);
+    }
+    g_free(content);
+    return FALSE;
+  }
+  g_free(content);
+
+  g_free(self->current_file_path);
+  self->current_file_path = g_strdup(path);
+  markyd_app_update_window_title(self);
+  return TRUE;
+}
+
+gboolean markyd_app_save_current_file(MarkydApp *self) {
+  gchar *path;
+  gboolean ok;
+
+  if (!self || !self->current_file_path || self->current_file_path[0] == '\0') {
+    return FALSE;
+  }
+
+  path = g_strdup(self->current_file_path);
+  ok = markyd_app_save_file(self, path);
+  g_free(path);
+  return ok;
+}
+
 const gchar *markyd_app_get_current_path(MarkydApp *self) {
   if (!self) {
     return NULL;

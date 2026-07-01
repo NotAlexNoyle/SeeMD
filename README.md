@@ -1,18 +1,19 @@
 # ViewMD
 
-A lightweight GTK 3 markdown viewer for desktop Linux. It is ideal as your default app for opening `.md` files. Uses the excellent library [md4c](https://github.com/mity/md4c) for markdown parsing. This project is sort of a companion app/fork of my other markdown project [TrayMD](https://github.com/rabfulton/TrayMD). 
+A lightweight GTK 3 markdown viewer and editor for desktop Linux. It is ideal as your default app for opening `.md` files. Uses the excellent library [md4c](https://github.com/mity/md4c) for markdown parsing and WebKitGTK for GitHub-style preview rendering. This project is a fork of [ViewMD](https://github.com/rabfulton/ViewMD) by NotAlexNoyle.
 
 ![ViewMD](assets/screenshot.png)
 
 ## Features
 
-- **Native GTK viewer** - No webviews
-- **Read-only rendering** - Focused on viewing markdown files
-- **Minimal UI** - Clean toolbar with open and settings buttons
-- **Lightweight** - Pure C, no web technologies, fast startup
+- **GitHub-style preview** - Rendered Markdown and inline HTML are displayed through WebKitGTK with GitHub-like markdown styling
+- **Read-only preview** - Rendered Markdown stays non-editable until source mode is enabled
+- **Source editing mode** - Toggle between rendered preview and editable Markdown
+- **Minimal UI** - Clean toolbar with open, reload, edit, save, and settings buttons
+- **Lightweight** - Pure C with GTK and WebKitGTK, fast startup
 - **Hyperlink support** - Left click opens links and internal anchors
 - **Document search** - `Ctrl+F` with next/previous match navigation
-- **Local image support** - Local images are resized to fit the the document window
+- **Local image support** - Local images keep natural size unless they need to fit the document window
 
 ## Supported Markdown
 
@@ -30,6 +31,7 @@ A lightweight GTK 3 markdown viewer for desktop Linux. It is ideal as your defau
 | `[text](url)` | Link |
 | `~~strike~~` | Strikethrough |
 | `\| table \| row \|` | Markdown tables |
+| `<strong>HTML</strong>` | GitHub-style inline and block HTML rendered in preview mode |
 | `---` | Horizontal rule |
 
 Code blocks currently support a beta version of keyword highlighting for fenced languages `c`, `java`, and `python`.
@@ -62,6 +64,8 @@ Run `viewmd` to start the application.
 
 - **Open button**: Open a markdown document
 - **Reload button**: Reload the currently open document from disk
+- **Edit button**: Toggle editable Markdown source mode (`Ctrl+E`)
+- **Save button**: Save the current Markdown source (`Ctrl+S`)
 - **Settings button**: Adjust theme, fonts, and markdown accent colors
 
 ### Find in Document
@@ -113,17 +117,17 @@ sudo make uninstall
 
 ### Arch Linux
 ```bash
-sudo pacman -S gtk3
+sudo pacman -S gtk3 webkit2gtk-4.1
 ```
 
 ### Ubuntu/Debian
 ```bash
-sudo apt install libgtk-3-dev
+sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev
 ```
 
 ### Fedora
 ```bash
-sudo dnf install gtk3-devel
+sudo dnf install gtk3-devel webkit2gtk4.1-devel
 ```
 
 ## Packaging Templates
@@ -133,12 +137,4 @@ sudo dnf install gtk3-devel
 - RPM: `packaging/rpm/viewmd.spec.in`
 ## License
 
-MIT License
-
-## Other Useful Projects
-- TrayMD is an app for taking notes in markdown with live editing [TrayMD](https://github.com/rabfulton/TrayMD)
-- Preditor is an image viewer with a similar philosophy to viewmd [preditor](https://github.com/rabfulton/preditor)
-- Try my AI panel plugin for XFCE [XFCE Ask](https://github.com/rabfulton/xfce-ask)
-- For a feature complete AI application try out [ChatGTK](https://github.com/rabfulton/ChatGTK)
-- A lightweight speech to text implementation [Auriscribe](https://github.com/rabfulton/Auriscribe)
-- A lightweight local movie database and browser [ReelVault](https://github.com/rabfulton/ReelVault)
+Released under the [MIT License](LICENSE).

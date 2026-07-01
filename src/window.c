@@ -14,10 +14,14 @@ typedef struct {
 
 #define TAG_SEARCH_MATCH "viewmd_search_match"
 #define TAG_SEARCH_CURRENT "viewmd_search_current"
+#define TOOLBAR_LABEL_DATA "viewmd-toolbar-label"
 
 static void on_open_clicked(GtkButton *button, gpointer user_data);
 static void on_refresh_clicked(GtkButton *button, gpointer user_data);
+static void on_edit_clicked(GtkButton *button, gpointer user_data);
+static void on_save_clicked(GtkButton *button, gpointer user_data);
 static void on_settings_clicked(GtkButton *button, gpointer user_data);
+static void on_about_clicked(GtkButton *button, gpointer user_data);
 static void on_search_changed(GtkEditable *editable, gpointer user_data);
 static void on_search_prev_clicked(GtkButton *button, gpointer user_data);
 static void on_search_next_clicked(GtkButton *button, gpointer user_data);
@@ -62,6 +66,13 @@ static gchar *rgba_to_hex(const GdkRGBA *rgba);
 static void init_color_button(GtkColorButton *btn, const gchar *color_str);
 static void on_color_set(GtkColorButton *btn, gpointer user_data);
 static GtkWidget *create_settings_dialog(MarkydApp *app);
+static gboolean prompt_save_as(MarkydWindow *self);
+static void update_edit_button_state(MarkydWindow *self);
+static void set_edit_mode(MarkydWindow *self, gboolean edit_mode);
+static GtkWidget *create_toolbar_button(const gchar *icon_name, const gchar *label,
+                                        const gchar *tooltip);
+static void set_toolbar_button_label(GtkWidget *button, const gchar *label);
+static void restore_editor_focus(MarkydWindow *self);
 
 static gboolean geometry_debug_enabled(void) {
   const gchar *v = g_getenv("VIEWMD_DEBUG_GEOMETRY");
@@ -127,6 +138,8 @@ static void clear_search_matches(MarkydWindow *self) {
   if (!self || !self->editor || !self->editor->buffer) {
     return;
   }
+
+  markyd_editor_find_clear(self->editor);
 
   gtk_text_buffer_get_bounds(self->editor->buffer, &start, &end);
   gtk_text_buffer_remove_tag_by_name(self->editor->buffer, TAG_SEARCH_MATCH,
@@ -480,6 +493,14 @@ static void update_search_matches(MarkydWindow *self) {
     return;
   }
 
+  if (!markyd_editor_get_edit_mode(self->editor)) {
+    markyd_editor_find(self->editor, query);
+    gtk_widget_set_sensitive(self->btn_search_prev, TRUE);
+    gtk_widget_set_sensitive(self->btn_search_next, TRUE);
+    gtk_label_set_text(GTK_LABEL(self->lbl_search_status), "Preview search");
+    return;
+  }
+
   ensure_search_tags(self);
   gtk_text_buffer_get_start_iter(self->editor->buffer, &iter);
   gtk_text_buffer_get_end_iter(self->editor->buffer, &end);
@@ -548,6 +569,11 @@ static void on_search_prev_clicked(GtkButton *button, gpointer user_data) {
   (void)button;
 
   if (!self || !self->search_matches || self->search_matches->len == 0) {
+    if (self && self->editor && !markyd_editor_get_edit_mode(self->editor) &&
+        self->search_entry &&
+        gtk_entry_get_text_length(GTK_ENTRY(self->search_entry)) > 0) {
+      markyd_editor_find_next(self->editor, TRUE);
+    }
     return;
   }
 
@@ -565,6 +591,11 @@ static void on_search_next_clicked(GtkButton *button, gpointer user_data) {
   (void)button;
 
   if (!self || !self->search_matches || self->search_matches->len == 0) {
+    if (self && self->editor && !markyd_editor_get_edit_mode(self->editor) &&
+        self->search_entry &&
+        gtk_entry_get_text_length(GTK_ENTRY(self->search_entry)) > 0) {
+      markyd_editor_find_next(self->editor, FALSE);
+    }
     return;
   }
 
@@ -624,9 +655,108 @@ static void on_editor_buffer_changed(GtkTextBuffer *buffer, gpointer user_data) 
   update_search_matches(self);
 }
 
+static GtkWidget *create_toolbar_button_internal(const gchar *icon_name,
+                                                 const gchar *label,
+                                                 const gchar *tooltip,
+                                                 gboolean toggle) {
+  GtkWidget *button;
+  GtkWidget *box;
+  GtkWidget *image;
+  GtkWidget *label_widget;
+
+  button = toggle ? gtk_toggle_button_new() : gtk_button_new();
+  box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
+  image = gtk_image_new_from_icon_name(icon_name, GTK_ICON_SIZE_BUTTON);
+  label_widget = gtk_label_new(label);
+
+  gtk_widget_set_halign(box, GTK_ALIGN_CENTER);
+  gtk_widget_set_valign(box, GTK_ALIGN_CENTER);
+  gtk_box_pack_start(GTK_BOX(box), image, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(box), label_widget, FALSE, FALSE, 0);
+  gtk_container_add(GTK_CONTAINER(button), box);
+  gtk_widget_set_focus_on_click(button, FALSE);
+
+  if (tooltip) {
+    gtk_widget_set_tooltip_text(button, tooltip);
+  }
+  g_object_set_data(G_OBJECT(button), TOOLBAR_LABEL_DATA, label_widget);
+  return button;
+}
+
+static GtkWidget *create_toolbar_button(const gchar *icon_name, const gchar *label,
+                                        const gchar *tooltip) {
+  return create_toolbar_button_internal(icon_name, label, tooltip, FALSE);
+}
+
+static void set_toolbar_button_label(GtkWidget *button, const gchar *label) {
+  GtkWidget *label_widget;
+
+  if (!button || !label) {
+    return;
+  }
+
+  label_widget = g_object_get_data(G_OBJECT(button), TOOLBAR_LABEL_DATA);
+  if (GTK_IS_LABEL(label_widget)) {
+    gtk_label_set_text(GTK_LABEL(label_widget), label);
+  }
+}
+
+static void restore_editor_focus(MarkydWindow *self) {
+  if (self && self->editor) {
+    markyd_editor_focus(self->editor);
+  }
+}
+
+static void on_about_popover_closed(GtkPopover *popover, gpointer user_data) {
+  MarkydWindow *self = (MarkydWindow *)user_data;
+
+  restore_editor_focus(self);
+  gtk_widget_destroy(GTK_WIDGET(popover));
+}
+
+static void on_about_clicked(GtkButton *button, gpointer user_data) {
+  MarkydWindow *self = (MarkydWindow *)user_data;
+  GtkWidget *popover;
+  GtkWidget *box;
+  GtkWidget *title;
+  GtkWidget *summary;
+  GtkWidget *details;
+
+  popover = gtk_popover_new(GTK_WIDGET(button));
+  gtk_popover_set_position(GTK_POPOVER(popover), GTK_POS_BOTTOM);
+  gtk_container_set_border_width(GTK_CONTAINER(popover), 12);
+  g_signal_connect(popover, "closed", G_CALLBACK(on_about_popover_closed), self);
+
+  box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+  gtk_widget_set_size_request(box, 300, -1);
+  gtk_container_add(GTK_CONTAINER(popover), box);
+
+  title = gtk_label_new(NULL);
+  gtk_label_set_markup(GTK_LABEL(title), "<b>ViewMD</b>");
+  gtk_label_set_xalign(GTK_LABEL(title), 0.0f);
+  gtk_box_pack_start(GTK_BOX(box), title, FALSE, FALSE, 0);
+
+  summary = gtk_label_new("A lightweight GTK markdown viewer and editor.");
+  gtk_label_set_xalign(GTK_LABEL(summary), 0.0f);
+  gtk_label_set_line_wrap(GTK_LABEL(summary), TRUE);
+  gtk_box_pack_start(GTK_BOX(box), summary, FALSE, FALSE, 0);
+
+  details = gtk_label_new(
+      "This is a fork of ViewMD by NotAlexNoyle, with additional features, "
+      "including GitHub-style preview rendering, HTML-in-Markdown support, "
+      "editing, saving, toolbar labels, and improved image sizing.");
+  gtk_label_set_xalign(GTK_LABEL(details), 0.0f);
+  gtk_label_set_line_wrap(GTK_LABEL(details), TRUE);
+  gtk_label_set_max_width_chars(GTK_LABEL(details), 42);
+  gtk_box_pack_start(GTK_BOX(box), details, FALSE, FALSE, 0);
+
+  gtk_widget_show_all(popover);
+  gtk_popover_popup(GTK_POPOVER(popover));
+}
+
 MarkydWindow *markyd_window_new(MarkydApp *app) {
   MarkydWindow *self = g_new0(MarkydWindow, 1);
-  GtkWidget *left_buttons;
+  GtkWidget *toolbar_buttons;
   GtkWidget *main_box;
   GtkWidget *search_box;
 
@@ -664,33 +794,52 @@ MarkydWindow *markyd_window_new(MarkydApp *app) {
   gtk_header_bar_set_show_close_button(GTK_HEADER_BAR(self->header_bar), TRUE);
   gtk_window_set_titlebar(GTK_WINDOW(self->window), self->header_bar);
 
-  self->lbl_title = gtk_label_new("ViewMD");
-  gtk_widget_set_halign(self->lbl_title, GTK_ALIGN_CENTER);
-  gtk_header_bar_set_custom_title(GTK_HEADER_BAR(self->header_bar),
-                                  self->lbl_title);
+  self->lbl_title = gtk_button_new_with_label("ViewMD");
+  gtk_button_set_relief(GTK_BUTTON(self->lbl_title), GTK_RELIEF_NONE);
+  gtk_widget_set_focus_on_click(self->lbl_title, FALSE);
+  gtk_widget_set_tooltip_text(self->lbl_title, "About ViewMD");
+  gtk_widget_set_halign(self->lbl_title, GTK_ALIGN_END);
+  gtk_widget_set_margin_start(self->lbl_title, 12);
+  gtk_widget_set_margin_end(self->lbl_title, 12);
+  g_signal_connect(self->lbl_title, "clicked", G_CALLBACK(on_about_clicked),
+                   self);
 
   self->btn_open =
-      gtk_button_new_from_icon_name("document-open-symbolic", GTK_ICON_SIZE_BUTTON);
-  gtk_widget_set_tooltip_text(self->btn_open, "Open Markdown Document");
+      create_toolbar_button("document-open-symbolic", "Open",
+                            "Open Markdown Document");
   g_signal_connect(self->btn_open, "clicked", G_CALLBACK(on_open_clicked), self);
 
   self->btn_refresh =
-      gtk_button_new_from_icon_name("view-refresh-symbolic", GTK_ICON_SIZE_BUTTON);
-  gtk_widget_set_tooltip_text(self->btn_refresh, "Reload Current Document");
+      create_toolbar_button("view-refresh-symbolic", "Reload",
+                            "Reload Current Document");
   g_signal_connect(self->btn_refresh, "clicked", G_CALLBACK(on_refresh_clicked),
                    self);
 
+  self->btn_edit =
+      create_toolbar_button("accessories-text-editor-symbolic", "Edit",
+                            "Edit Markdown Source");
+  g_signal_connect(self->btn_edit, "clicked", G_CALLBACK(on_edit_clicked), self);
+
+  self->btn_save =
+      create_toolbar_button("document-save-symbolic", "Save",
+                            "Save Markdown Document");
+  g_signal_connect(self->btn_save, "clicked", G_CALLBACK(on_save_clicked), self);
+
   self->btn_settings =
-      gtk_button_new_from_icon_name("emblem-system-symbolic", GTK_ICON_SIZE_BUTTON);
-  gtk_widget_set_tooltip_text(self->btn_settings, "Settings");
+      create_toolbar_button("emblem-system-symbolic", "Settings", "Settings");
   g_signal_connect(self->btn_settings, "clicked", G_CALLBACK(on_settings_clicked),
                    self);
 
-  left_buttons = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-  gtk_box_pack_start(GTK_BOX(left_buttons), self->btn_open, FALSE, FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(left_buttons), self->btn_refresh, FALSE, FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(left_buttons), self->btn_settings, FALSE, FALSE, 0);
-  gtk_header_bar_pack_start(GTK_HEADER_BAR(self->header_bar), left_buttons);
+  toolbar_buttons = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+  gtk_widget_set_halign(toolbar_buttons, GTK_ALIGN_CENTER);
+  gtk_box_pack_start(GTK_BOX(toolbar_buttons), self->btn_open, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(toolbar_buttons), self->btn_refresh, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(toolbar_buttons), self->btn_edit, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(toolbar_buttons), self->btn_save, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(toolbar_buttons), self->btn_settings, FALSE, FALSE, 0);
+  gtk_header_bar_set_custom_title(GTK_HEADER_BAR(self->header_bar),
+                                  toolbar_buttons);
+  gtk_header_bar_pack_end(GTK_HEADER_BAR(self->header_bar), self->lbl_title);
 
   main_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
   gtk_container_add(GTK_CONTAINER(self->window), main_box);
@@ -737,14 +886,10 @@ MarkydWindow *markyd_window_new(MarkydApp *app) {
   gtk_widget_set_halign(self->lbl_search_status, GTK_ALIGN_END);
   gtk_box_pack_start(GTK_BOX(search_box), self->lbl_search_status, FALSE, FALSE, 0);
 
-  self->scroll = gtk_scrolled_window_new(NULL, NULL);
-  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(self->scroll),
-                                 GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-  gtk_box_pack_start(GTK_BOX(main_box), self->scroll, TRUE, TRUE, 0);
-
   self->editor = markyd_editor_new(app);
-  gtk_container_add(GTK_CONTAINER(self->scroll),
-                    markyd_editor_get_widget(self->editor));
+  self->scroll = self->editor->source_scroll;
+  gtk_box_pack_start(GTK_BOX(main_box), markyd_editor_get_widget(self->editor),
+                     TRUE, TRUE, 0);
   self->search_matches = g_array_new(FALSE, FALSE, sizeof(SearchMatch));
   self->search_current_index = -1;
   g_signal_connect(self->editor->buffer, "changed",
@@ -918,6 +1063,94 @@ gboolean markyd_window_is_visible(MarkydWindow *self) {
   return gtk_widget_get_visible(self->window);
 }
 
+static void update_edit_button_state(MarkydWindow *self) {
+  gboolean editing;
+
+  if (!self || !self->editor || !self->btn_edit) {
+    return;
+  }
+
+  editing = markyd_editor_get_edit_mode(self->editor);
+  set_toolbar_button_label(self->btn_edit, editing ? "Preview" : "Edit");
+  gtk_widget_set_tooltip_text(self->btn_edit,
+                              editing ? "Preview Markdown" : "Edit Markdown Source");
+}
+
+static void set_edit_mode(MarkydWindow *self, gboolean edit_mode) {
+  if (!self || !self->editor) {
+    return;
+  }
+
+  markyd_editor_set_edit_mode(self->editor, edit_mode);
+  update_edit_button_state(self);
+  markyd_editor_focus(self->editor);
+  if (self->search_revealer &&
+      gtk_revealer_get_reveal_child(GTK_REVEALER(self->search_revealer)) &&
+      self->search_entry &&
+      gtk_entry_get_text_length(GTK_ENTRY(self->search_entry)) > 0) {
+    update_search_matches(self);
+  }
+}
+
+static gboolean prompt_save_as(MarkydWindow *self) {
+  GtkWidget *dialog;
+  GtkFileFilter *md_filter;
+  gint response;
+  gboolean saved = FALSE;
+
+  if (!self || !self->window) {
+    return FALSE;
+  }
+
+  dialog = gtk_file_chooser_dialog_new(
+      "Save Markdown Document", GTK_WINDOW(self->window),
+      GTK_FILE_CHOOSER_ACTION_SAVE, "_Cancel", GTK_RESPONSE_CANCEL, "_Save",
+      GTK_RESPONSE_ACCEPT, NULL);
+  gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(dialog), TRUE);
+
+  md_filter = gtk_file_filter_new();
+  gtk_file_filter_set_name(md_filter, "Markdown files (*.md, *.markdown)");
+  gtk_file_filter_add_pattern(md_filter, "*.md");
+  gtk_file_filter_add_pattern(md_filter, "*.markdown");
+  gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), md_filter);
+
+  md_filter = gtk_file_filter_new();
+  gtk_file_filter_set_name(md_filter, "All files");
+  gtk_file_filter_add_pattern(md_filter, "*");
+  gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), md_filter);
+
+  {
+    const gchar *current = markyd_app_get_current_path(self->app);
+    if (current && current[0] != '\0') {
+      gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(dialog), current);
+    } else {
+      gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(dialog), "untitled.md");
+    }
+  }
+
+  response = gtk_dialog_run(GTK_DIALOG(dialog));
+  if (response == GTK_RESPONSE_ACCEPT) {
+    gchar *path = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+    if (path) {
+      saved = markyd_app_save_file(self->app, path);
+      if (!saved) {
+        GtkWidget *error_dialog = gtk_message_dialog_new(
+            GTK_WINDOW(self->window),
+            GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT, GTK_MESSAGE_ERROR,
+            GTK_BUTTONS_CLOSE, "Failed to save document");
+        gtk_message_dialog_format_secondary_text(
+            GTK_MESSAGE_DIALOG(error_dialog), "%s", path);
+        gtk_dialog_run(GTK_DIALOG(error_dialog));
+        gtk_widget_destroy(error_dialog);
+      }
+      g_free(path);
+    }
+  }
+
+  gtk_widget_destroy(dialog);
+  return saved;
+}
+
 static void on_open_clicked(GtkButton *button, gpointer user_data) {
   MarkydWindow *self = (MarkydWindow *)user_data;
   GtkWidget *dialog;
@@ -961,6 +1194,7 @@ static void on_open_clicked(GtkButton *button, gpointer user_data) {
   }
 
   gtk_widget_destroy(dialog);
+  restore_editor_focus(self);
 }
 
 static void on_refresh_clicked(GtkButton *button, gpointer user_data) {
@@ -972,6 +1206,7 @@ static void on_refresh_clicked(GtkButton *button, gpointer user_data) {
 
   current = markyd_app_get_current_path(self->app);
   if (!current || current[0] == '\0') {
+    restore_editor_focus(self);
     return;
   }
 
@@ -987,6 +1222,45 @@ static void on_refresh_clicked(GtkButton *button, gpointer user_data) {
     gtk_widget_destroy(error_dialog);
   }
   g_free(path);
+  restore_editor_focus(self);
+}
+
+static void on_edit_clicked(GtkButton *button, gpointer user_data) {
+  MarkydWindow *self = (MarkydWindow *)user_data;
+  (void)button;
+  if (!self || !self->editor) {
+    return;
+  }
+  set_edit_mode(self, !markyd_editor_get_edit_mode(self->editor));
+}
+
+static void on_save_clicked(GtkButton *button, gpointer user_data) {
+  MarkydWindow *self = (MarkydWindow *)user_data;
+  const gchar *current;
+
+  (void)button;
+
+  if (!self || !self->app) {
+    return;
+  }
+
+  current = markyd_app_get_current_path(self->app);
+  if (!current || current[0] == '\0') {
+    prompt_save_as(self);
+    restore_editor_focus(self);
+    return;
+  }
+
+  if (!markyd_app_save_current_file(self->app)) {
+    GtkWidget *error_dialog = gtk_message_dialog_new(
+        GTK_WINDOW(self->window), GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+        GTK_MESSAGE_ERROR, GTK_BUTTONS_CLOSE, "Failed to save document");
+    gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(error_dialog),
+                                             "%s", current);
+    gtk_dialog_run(GTK_DIALOG(error_dialog));
+    gtk_widget_destroy(error_dialog);
+  }
+  restore_editor_focus(self);
 }
 
 static void on_settings_clicked(GtkButton *button, gpointer user_data) {
@@ -1007,6 +1281,7 @@ static void on_settings_clicked(GtkButton *button, gpointer user_data) {
   }
 
   gtk_widget_destroy(dialog);
+  restore_editor_focus(self);
 }
 
 static gboolean on_key_press_event(GtkWidget *widget, GdkEventKey *event,
@@ -1023,10 +1298,28 @@ static gboolean on_key_press_event(GtkWidget *widget, GdkEventKey *event,
     return TRUE;
   }
 
+  if ((event->state & GDK_CONTROL_MASK) != 0 &&
+      (event->keyval == GDK_KEY_e || event->keyval == GDK_KEY_E)) {
+    set_edit_mode(self, !markyd_editor_get_edit_mode(self->editor));
+    return TRUE;
+  }
+
+  if ((event->state & GDK_CONTROL_MASK) != 0 &&
+      (event->keyval == GDK_KEY_s || event->keyval == GDK_KEY_S)) {
+    on_save_clicked(NULL, self);
+    return TRUE;
+  }
+
   if (event->keyval == GDK_KEY_Escape &&
       self->search_revealer &&
       gtk_revealer_get_reveal_child(GTK_REVEALER(self->search_revealer))) {
     hide_search_ui(self);
+    return TRUE;
+  }
+
+  if (event->keyval == GDK_KEY_Escape && self->editor &&
+      markyd_editor_get_edit_mode(self->editor)) {
+    set_edit_mode(self, FALSE);
     return TRUE;
   }
 
@@ -1036,6 +1329,11 @@ static gboolean on_key_press_event(GtkWidget *widget, GdkEventKey *event,
   }
 
   if (event->keyval == GDK_KEY_Home || event->keyval == GDK_KEY_KP_Home) {
+    if (self->editor && !markyd_editor_get_edit_mode(self->editor)) {
+      markyd_editor_scroll_top(self->editor);
+      return TRUE;
+    }
+
     if (self->editor && self->editor->buffer && self->editor->text_view) {
       GtkTextIter start;
       GtkAdjustment *hadj = NULL;

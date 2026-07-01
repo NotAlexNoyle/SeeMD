@@ -36,6 +36,8 @@ void markdown_update_accent_tags(GtkTextBuffer *buffer);
 #define VIEWMD_IMAGE_SRC_DATA "viewmd-image-src"
 #define VIEWMD_IMAGE_ALT_DATA "viewmd-image-alt"
 #define VIEWMD_IMAGE_WIDGET_DATA "viewmd-image-widget"
+#define VIEWMD_IMAGE_WIDTH_DATA "viewmd-image-width"
+#define VIEWMD_IMAGE_HEIGHT_DATA "viewmd-image-height"
 
 typedef struct {
   gint row;
@@ -58,6 +60,9 @@ gchar *markdown_anchor_mark_name(const gchar *fragment);
 
 /* Render markdown source into the buffer and apply markdown styling. */
 void markdown_apply_tags(GtkTextBuffer *buffer, const gchar *source);
+
+/* Render markdown source to a complete GitHub-style HTML document. */
+gchar *markdown_render_github_html(const gchar *source, const gchar *base_uri);
 
 /* Build a GTK widget for a table anchor, or NULL if not a table anchor. */
 GtkWidget *markdown_create_table_widget(GtkTextChildAnchor *anchor);

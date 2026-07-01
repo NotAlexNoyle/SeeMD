@@ -11,11 +11,13 @@ BuildRequires:  gcc
 BuildRequires:  make
 BuildRequires:  pkgconfig
 BuildRequires:  gtk3-devel
+BuildRequires:  webkit2gtk4.1-devel
 
 Requires:       gtk3
+Requires:       webkit2gtk4.1
 
 %description
-ViewMD is a lightweight native GTK3 markdown viewer.
+ViewMD is a lightweight GTK3 markdown viewer with GitHub-style WebKit preview rendering.
 
 %prep
 %autosetup -n viewmd-%{version}

@@ -25,6 +25,8 @@ int markyd_app_run(MarkydApp *app, int argc, char **argv);
 
 /* Document management */
 gboolean markyd_app_open_file(MarkydApp *app, const gchar *path);
+gboolean markyd_app_save_file(MarkydApp *app, const gchar *path);
+gboolean markyd_app_save_current_file(MarkydApp *app);
 
 /* Utility */
 const gchar *markyd_app_get_current_path(MarkydApp *app);
