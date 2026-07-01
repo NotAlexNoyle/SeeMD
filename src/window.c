@@ -732,7 +732,9 @@ static void on_about_clicked(GtkButton *button, gpointer user_data) {
   gtk_container_add(GTK_CONTAINER(popover), box);
 
   title = gtk_label_new(NULL);
-  gtk_label_set_markup(GTK_LABEL(title), "<b>SeeMD</b>");
+  gtk_label_set_markup(
+      GTK_LABEL(title),
+      "<a href=\"https://github.com/NotAlexNoyle/SeeMD\"><b>SeeMD</b></a>");
   gtk_label_set_xalign(GTK_LABEL(title), 0.0f);
   gtk_box_pack_start(GTK_BOX(box), title, FALSE, FALSE, 0);
 
@@ -741,10 +743,14 @@ static void on_about_clicked(GtkButton *button, gpointer user_data) {
   gtk_label_set_line_wrap(GTK_LABEL(summary), TRUE);
   gtk_box_pack_start(GTK_BOX(box), summary, FALSE, FALSE, 0);
 
-  details = gtk_label_new(
-      "This is a fork of SeeMD by NotAlexNoyle, with additional features, "
-      "including GitHub-style preview rendering, HTML-in-Markdown support, "
-      "editing, saving, toolbar labels, and improved image sizing.");
+  details = gtk_label_new(NULL);
+  gtk_label_set_markup(
+      GTK_LABEL(details),
+      "This is a fork of "
+      "<a href=\"https://github.com/rabfulton/ViewMD\">ViewMD</a> by "
+      "NotAlexNoyle, with additional features, including GitHub-style preview "
+      "rendering, HTML-in-Markdown support, editing, saving, toolbar labels, "
+      "and improved image sizing.");
   gtk_label_set_xalign(GTK_LABEL(details), 0.0f);
   gtk_label_set_line_wrap(GTK_LABEL(details), TRUE);
   gtk_label_set_max_width_chars(GTK_LABEL(details), 42);
@@ -790,12 +796,10 @@ MarkydWindow *markyd_window_new(MarkydApp *app) {
   g_signal_connect(self->window, "window-state-event",
                    G_CALLBACK(on_window_state_event), self);
 
-  self->header_bar = gtk_header_bar_new();
-  gtk_header_bar_set_show_close_button(GTK_HEADER_BAR(self->header_bar), TRUE);
-  gtk_window_set_titlebar(GTK_WINDOW(self->window), self->header_bar);
-
-  self->lbl_title = gtk_button_new_with_label("SeeMD");
-  gtk_button_set_relief(GTK_BUTTON(self->lbl_title), GTK_RELIEF_NONE);
+  self->lbl_title = gtk_button_new_from_icon_name("view-reveal-symbolic",
+                                                  GTK_ICON_SIZE_BUTTON);
+  gtk_button_set_relief(GTK_BUTTON(self->lbl_title), GTK_RELIEF_NORMAL);
+  gtk_widget_set_valign(self->lbl_title, GTK_ALIGN_CENTER);
   gtk_widget_set_focus_on_click(self->lbl_title, FALSE);
   gtk_widget_set_tooltip_text(self->lbl_title, "About SeeMD");
   gtk_widget_set_halign(self->lbl_title, GTK_ALIGN_END);
@@ -837,12 +841,18 @@ MarkydWindow *markyd_window_new(MarkydApp *app) {
   gtk_box_pack_start(GTK_BOX(toolbar_buttons), self->btn_edit, FALSE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(toolbar_buttons), self->btn_save, FALSE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(toolbar_buttons), self->btn_settings, FALSE, FALSE, 0);
-  gtk_header_bar_set_custom_title(GTK_HEADER_BAR(self->header_bar),
-                                  toolbar_buttons);
-  gtk_header_bar_pack_end(GTK_HEADER_BAR(self->header_bar), self->lbl_title);
+
+  /* Plain in-window toolbar (no GtkHeaderBar/CSD) so the window manager draws
+   * server-side decorations with full window controls (e.g. KDE/KWin). */
+  self->header_bar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+  gtk_style_context_add_class(gtk_widget_get_style_context(self->header_bar),
+                              "toolbar");
+  gtk_box_set_center_widget(GTK_BOX(self->header_bar), toolbar_buttons);
+  gtk_box_pack_end(GTK_BOX(self->header_bar), self->lbl_title, FALSE, FALSE, 0);
 
   main_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
   gtk_container_add(GTK_CONTAINER(self->window), main_box);
+  gtk_box_pack_start(GTK_BOX(main_box), self->header_bar, FALSE, FALSE, 0);
 
   self->search_revealer = gtk_revealer_new();
   gtk_revealer_set_transition_type(GTK_REVEALER(self->search_revealer),
@@ -899,6 +909,10 @@ MarkydWindow *markyd_window_new(MarkydApp *app) {
   markyd_window_apply_css(self);
 
   gtk_widget_show_all(self->window);
+
+  /* Focus the document instead of letting the first toolbar button (Open)
+   * grab default keyboard focus. */
+  markyd_editor_focus(self->editor);
 
   return self;
 }

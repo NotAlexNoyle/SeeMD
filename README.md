@@ -1,8 +1,8 @@
-# SeeMD
+# 👁 SeeMD
 
 A lightweight GTK 3 markdown viewer and editor for desktop Linux. It is ideal as your default app for opening `.md` files. Uses the excellent library [md4c](https://github.com/mity/md4c) for markdown parsing and WebKitGTK for GitHub-style preview rendering. This project is a fork of [ViewMD](https://github.com/rabfulton/ViewMD) by NotAlexNoyle.
 
-![SeeMD](assets/screenshot.png)
+![SeeMD](assets/seemd.png)
 
 ## Features
 
