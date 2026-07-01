@@ -50,7 +50,7 @@ void config_free(MarkydConfig *cfg) {
 const gchar *config_get_path(void) {
   if (!config_path) {
     const gchar *config_dir = g_get_user_config_dir();
-    gchar *new_app_dir = g_build_filename(config_dir, "viewmd", NULL);
+    gchar *new_app_dir = g_build_filename(config_dir, "seemd", NULL);
 
     g_mkdir_with_parents(new_app_dir, 0755);
     config_path = g_build_filename(new_app_dir, "config.ini", NULL);

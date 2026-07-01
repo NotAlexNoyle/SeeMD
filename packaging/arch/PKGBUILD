@@ -1,9 +1,9 @@
-pkgname=viewmd
+pkgname=seemd
 pkgver=0.r0.g0000000
 pkgrel=1
 pkgdesc="Lightweight GTK3 markdown viewer"
 arch=('x86_64')
-url="https://github.com/rabfulton/ViewMD"
+url="https://github.com/NotAlexNoyle/SeeMD"
 license=('MIT')
 depends=('gtk3' 'webkit2gtk-4.1')
 makedepends=('git' 'gcc' 'make' 'pkgconf')

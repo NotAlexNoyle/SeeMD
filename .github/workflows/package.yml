@@ -29,8 +29,8 @@ jobs:
       - name: ABI check (GLib)
         run: |
           set -euo pipefail
-          if nm -D viewmd | grep -q ' g_string_free_and_steal$'; then
-            echo "Error: viewmd links against g_string_free_and_steal (too-new GLib ABI for jammy/mint 21.x)" >&2
+          if nm -D seemd | grep -q ' g_string_free_and_steal$'; then
+            echo "Error: seemd links against g_string_free_and_steal (too-new GLib ABI for jammy/mint 21.x)" >&2
             exit 1
           fi
 
@@ -41,7 +41,7 @@ jobs:
           ARCH="$(dpkg --print-architecture)"
           MAINTAINER="${GITHUB_REPOSITORY_OWNER} <noreply@github.com>"
 
-          PKGDIR="dist/deb/viewmd_${VERSION}_${ARCH}"
+          PKGDIR="dist/deb/seemd_${VERSION}_${ARCH}"
           rm -rf "$PKGDIR"
           mkdir -p "$PKGDIR/DEBIAN"
 
@@ -57,7 +57,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: viewmd-deb
+          name: seemd-deb
           path: dist/deb/*.deb
 
   rpm:
@@ -87,7 +87,7 @@ jobs:
           TAG="${{ github.event.release.tag_name || github.ref_name }}"
           VERSION="${TAG#v}"
           mkdir -p dist
-          git archive --format=tar.gz --prefix="viewmd-${VERSION}/" -o "dist/viewmd-${VERSION}.tar.gz" HEAD
+          git archive --format=tar.gz --prefix="seemd-${VERSION}/" -o "dist/seemd-${VERSION}.tar.gz" HEAD
 
       - name: Build .rpm
         run: |
@@ -98,25 +98,25 @@ jobs:
           TOPDIR="$PWD/dist/rpmbuild"
           mkdir -p "$TOPDIR"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
 
-          cp "dist/viewmd-${VERSION}.tar.gz" "$TOPDIR/SOURCES/"
+          cp "dist/seemd-${VERSION}.tar.gz" "$TOPDIR/SOURCES/"
 
           sed \
             -e "s/@VERSION@/${VERSION}/g" \
             -e "s|@URL@|${URL}|g" \
-            packaging/rpm/viewmd.spec.in > "$TOPDIR/SPECS/viewmd.spec"
+            packaging/rpm/seemd.spec.in > "$TOPDIR/SPECS/seemd.spec"
 
           rpmbuild \
             --define "_topdir ${TOPDIR}" \
-            -bb "$TOPDIR/SPECS/viewmd.spec"
+            -bb "$TOPDIR/SPECS/seemd.spec"
 
           mkdir -p dist/rpm
           # Only publish the main runtime RPM (exclude -debuginfo/-debugsource).
-          find "$TOPDIR/RPMS" -type f -name 'viewmd-[0-9]*.rpm' -exec cp -v -t dist/rpm {} +
+          find "$TOPDIR/RPMS" -type f -name 'seemd-[0-9]*.rpm' -exec cp -v -t dist/rpm {} +
 
       - uses: actions/upload-artifact@v4
         with:
-          name: viewmd-rpm
-          path: dist/rpm/viewmd-[0-9]*.rpm
+          name: seemd-rpm
+          path: dist/rpm/seemd-[0-9]*.rpm
 
   release-assets:
     runs-on: ubuntu-latest
@@ -126,7 +126,7 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: viewmd-*
+          pattern: seemd-*
           merge-multiple: true
           path: dist
 
@@ -135,4 +135,4 @@ jobs:
         with:
           files: |
             dist/*.deb
-            dist/viewmd-[0-9]*.rpm
+            dist/seemd-[0-9]*.rpm

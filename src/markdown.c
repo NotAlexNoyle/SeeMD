@@ -28,7 +28,7 @@
 #define TAG_TABLE_HEADER "table_header"
 #define TAG_TABLE_SEPARATOR "table_separator"
 #define TAG_INVISIBLE "invisible"
-#define TABLE_MODEL_DATA_KEY "viewmd-table-model"
+#define TABLE_MODEL_DATA_KEY "seemd-table-model"
 
 typedef struct {
   gboolean ordered;
@@ -85,13 +85,13 @@ typedef struct {
 typedef struct {
   gboolean is_header;
   GPtrArray *cells; /* gchar* */
-} ViewmdTableRow;
+} SeemdTableRow;
 
 typedef struct {
   guint col_count;
   GArray *aligns;   /* MD_ALIGN */
-  GPtrArray *rows;  /* ViewmdTableRow* */
-} ViewmdTable;
+  GPtrArray *rows;  /* SeemdTableRow* */
+} SeemdTable;
 
 typedef struct {
   gint start_offset;
@@ -115,8 +115,8 @@ typedef struct {
   gboolean list_item_prefix_pending;
   guint quote_depth;
   gboolean in_table_head;
-  ViewmdTable *table_model;
-  ViewmdTableRow *table_current_row;
+  SeemdTable *table_model;
+  SeemdTableRow *table_current_row;
   GString *table_cell_text;
   guint table_current_col;
   gboolean in_image;
@@ -144,8 +144,8 @@ static void html_element_free(gpointer data) {
   g_free(el);
 }
 
-static void viewmd_table_row_free(gpointer data) {
-  ViewmdTableRow *row = (ViewmdTableRow *)data;
+static void seemd_table_row_free(gpointer data) {
+  SeemdTableRow *row = (SeemdTableRow *)data;
   if (!row) {
     return;
   }
@@ -155,8 +155,8 @@ static void viewmd_table_row_free(gpointer data) {
   g_free(row);
 }
 
-static void viewmd_table_free(gpointer data) {
-  ViewmdTable *table = (ViewmdTable *)data;
+static void seemd_table_free(gpointer data) {
+  SeemdTable *table = (SeemdTable *)data;
   if (!table) {
     return;
   }
@@ -169,11 +169,11 @@ static void viewmd_table_free(gpointer data) {
   g_free(table);
 }
 
-static ViewmdTable *viewmd_table_new(guint col_count) {
-  ViewmdTable *table = g_new0(ViewmdTable, 1);
+static SeemdTable *seemd_table_new(guint col_count) {
+  SeemdTable *table = g_new0(SeemdTable, 1);
   table->col_count = col_count;
   table->aligns = g_array_sized_new(FALSE, FALSE, sizeof(MD_ALIGN), col_count);
-  table->rows = g_ptr_array_new_with_free_func(viewmd_table_row_free);
+  table->rows = g_ptr_array_new_with_free_func(seemd_table_row_free);
   for (guint i = 0; i < col_count; i++) {
     MD_ALIGN align = MD_ALIGN_DEFAULT;
     g_array_append_val(table->aligns, align);
@@ -181,7 +181,7 @@ static ViewmdTable *viewmd_table_new(guint col_count) {
   return table;
 }
 
-static void table_ensure_col_count(ViewmdTable *table, guint col_count) {
+static void table_ensure_col_count(SeemdTable *table, guint col_count) {
   if (!table || col_count <= table->col_count) {
     return;
   }
@@ -807,7 +807,7 @@ gchar *markdown_normalize_anchor_slug(const gchar *text) {
 
 gchar *markdown_anchor_mark_name(const gchar *fragment) {
   gchar *slug = markdown_normalize_anchor_slug(fragment);
-  gchar *name = g_strdup_printf("%s%s", VIEWMD_ANCHOR_MARK_PREFIX, slug);
+  gchar *name = g_strdup_printf("%s%s", SEEMD_ANCHOR_MARK_PREFIX, slug);
   g_free(slug);
   return name;
 }
@@ -842,7 +842,7 @@ static void create_heading_anchor(RenderCtx *ctx) {
   slug = (count == 0) ? g_strdup(base) : g_strdup_printf("%s-%u", base, count);
   g_hash_table_replace(ctx->anchor_counts, g_strdup(base), GUINT_TO_POINTER(count + 1));
 
-  mark_name = g_strdup_printf("%s%s", VIEWMD_ANCHOR_MARK_PREFIX, slug);
+  mark_name = g_strdup_printf("%s%s", SEEMD_ANCHOR_MARK_PREFIX, slug);
   gtk_text_buffer_get_iter_at_offset(ctx->buffer, &at, ctx->heading_start_offset);
   gtk_text_buffer_create_mark(ctx->buffer, mark_name, &at, TRUE);
 
@@ -879,7 +879,7 @@ static gchar *table_cell_markup_to_plain(const gchar *markup) {
 }
 
 static void table_search_index_free(gpointer data) {
-  ViewmdTableSearchIndex *index = (ViewmdTableSearchIndex *)data;
+  SeemdTableSearchIndex *index = (SeemdTableSearchIndex *)data;
   if (!index) {
     return;
   }
@@ -889,9 +889,9 @@ static void table_search_index_free(gpointer data) {
   g_free(index);
 }
 
-static void table_emit_hidden_search_text(RenderCtx *ctx, ViewmdTable *table,
+static void table_emit_hidden_search_text(RenderCtx *ctx, SeemdTable *table,
                                           GtkTextChildAnchor *anchor) {
-  ViewmdTableSearchIndex *index;
+  SeemdTableSearchIndex *index;
   gboolean saved_has_output;
   guint saved_trailing_newlines;
   const gchar *cell_sep = " ";
@@ -905,12 +905,12 @@ static void table_emit_hidden_search_text(RenderCtx *ctx, ViewmdTable *table,
   saved_has_output = ctx->has_output;
   saved_trailing_newlines = ctx->trailing_newlines;
 
-  index = g_new0(ViewmdTableSearchIndex, 1);
-  index->cells = g_array_new(FALSE, FALSE, sizeof(ViewmdTableSearchCellRange));
+  index = g_new0(SeemdTableSearchIndex, 1);
+  index->cells = g_array_new(FALSE, FALSE, sizeof(SeemdTableSearchCellRange));
   index->start_offset = gtk_text_iter_get_offset(&ctx->iter);
 
   for (guint r = 0; r < table->rows->len; r++) {
-    ViewmdTableRow *row = g_ptr_array_index(table->rows, r);
+    SeemdTableRow *row = g_ptr_array_index(table->rows, r);
     if (!row) {
       continue;
     }
@@ -936,7 +936,7 @@ static void table_emit_hidden_search_text(RenderCtx *ctx, ViewmdTable *table,
       cell_end = gtk_text_iter_get_offset(&ctx->iter);
 
       if (cell_end > cell_start) {
-        ViewmdTableSearchCellRange cell_range = {(gint)r, (gint)c, cell_start,
+        SeemdTableSearchCellRange cell_range = {(gint)r, (gint)c, cell_start,
                                                  cell_end};
         g_array_append_val(index->cells, cell_range);
       }
@@ -953,7 +953,7 @@ static void table_emit_hidden_search_text(RenderCtx *ctx, ViewmdTable *table,
   if (index->end_offset > index->start_offset) {
     apply_tag_by_name_offsets(ctx->buffer, TAG_INVISIBLE, index->start_offset,
                               index->end_offset);
-    g_object_set_data_full(G_OBJECT(anchor), VIEWMD_TABLE_SEARCH_INDEX_DATA, index,
+    g_object_set_data_full(G_OBJECT(anchor), SEEMD_TABLE_SEARCH_INDEX_DATA, index,
                            table_search_index_free);
   } else {
     table_search_index_free(index);
@@ -1016,11 +1016,11 @@ static void table_capture_span_leave(RenderCtx *ctx, MD_SPANTYPE type) {
 }
 
 static void table_start_row(RenderCtx *ctx) {
-  ViewmdTableRow *row;
+  SeemdTableRow *row;
   if (!ctx || !ctx->table_model) {
     return;
   }
-  row = g_new0(ViewmdTableRow, 1);
+  row = g_new0(SeemdTableRow, 1);
   row->is_header = ctx->in_table_head;
   row->cells = g_ptr_array_new_with_free_func(g_free);
   g_ptr_array_add(ctx->table_model->rows, row);
@@ -1076,16 +1076,16 @@ static void table_emit_anchor(RenderCtx *ctx) {
     return;
   }
   if (ctx->table_model->rows->len == 0 || ctx->table_model->col_count == 0) {
-    viewmd_table_free(ctx->table_model);
+    seemd_table_free(ctx->table_model);
     ctx->table_model = NULL;
     return;
   }
 
   anchor = gtk_text_buffer_create_child_anchor(ctx->buffer, &ctx->iter);
   note_non_newline_output(ctx);
-  g_object_set_data(G_OBJECT(anchor), VIEWMD_TABLE_ANCHOR_DATA, GINT_TO_POINTER(1));
+  g_object_set_data(G_OBJECT(anchor), SEEMD_TABLE_ANCHOR_DATA, GINT_TO_POINTER(1));
   g_object_set_data_full(G_OBJECT(anchor), TABLE_MODEL_DATA_KEY, ctx->table_model,
-                         viewmd_table_free);
+                         seemd_table_free);
 
   /* Keep table text searchable via Ctrl+F without showing duplicate content. */
   table_emit_hidden_search_text(ctx, ctx->table_model, anchor);
@@ -1103,8 +1103,8 @@ static void image_emit_anchor(RenderCtx *ctx) {
 
   anchor = gtk_text_buffer_create_child_anchor(ctx->buffer, &ctx->iter);
   note_non_newline_output(ctx);
-  g_object_set_data(G_OBJECT(anchor), VIEWMD_IMAGE_ANCHOR_DATA, GINT_TO_POINTER(1));
-  g_object_set_data_full(G_OBJECT(anchor), VIEWMD_IMAGE_SRC_DATA,
+  g_object_set_data(G_OBJECT(anchor), SEEMD_IMAGE_ANCHOR_DATA, GINT_TO_POINTER(1));
+  g_object_set_data_full(G_OBJECT(anchor), SEEMD_IMAGE_SRC_DATA,
                          g_strdup(ctx->image_src), g_free);
 
   if (ctx->image_alt && ctx->image_alt->len > 0) {
@@ -1112,13 +1112,13 @@ static void image_emit_anchor(RenderCtx *ctx) {
   } else {
     alt = g_strdup("");
   }
-  g_object_set_data_full(G_OBJECT(anchor), VIEWMD_IMAGE_ALT_DATA, alt, g_free);
+  g_object_set_data_full(G_OBJECT(anchor), SEEMD_IMAGE_ALT_DATA, alt, g_free);
   if (ctx->image_width > 0) {
-    g_object_set_data(G_OBJECT(anchor), VIEWMD_IMAGE_WIDTH_DATA,
+    g_object_set_data(G_OBJECT(anchor), SEEMD_IMAGE_WIDTH_DATA,
                       GINT_TO_POINTER(ctx->image_width));
   }
   if (ctx->image_height > 0) {
-    g_object_set_data(G_OBJECT(anchor), VIEWMD_IMAGE_HEIGHT_DATA,
+    g_object_set_data(G_OBJECT(anchor), SEEMD_IMAGE_HEIGHT_DATA,
                       GINT_TO_POINTER(ctx->image_height));
   }
 
@@ -1554,7 +1554,7 @@ static void html_push_link_tags(RenderCtx *ctx, HtmlElement *el,
   }
 
   url_tag = gtk_text_buffer_create_tag(ctx->buffer, NULL, NULL);
-  g_object_set_data_full(G_OBJECT(url_tag), VIEWMD_LINK_URL_DATA, g_strdup(href),
+  g_object_set_data_full(G_OBJECT(url_tag), SEEMD_LINK_URL_DATA, g_strdup(href),
                          g_free);
   push_active_tag_by_name(ctx, TAG_LINK, &el->pushed_tags);
   push_active_tag(ctx, url_tag, &el->pushed_tags);
@@ -1820,9 +1820,9 @@ static void html_open_element(RenderCtx *ctx, const gchar *name,
     el->kind = HTML_EL_TABLE;
     ensure_newlines(ctx, 2);
     if (ctx->table_model) {
-      viewmd_table_free(ctx->table_model);
+      seemd_table_free(ctx->table_model);
     }
-    ctx->table_model = viewmd_table_new(0);
+    ctx->table_model = seemd_table_new(0);
     ctx->table_current_row = NULL;
     ctx->in_table_head = FALSE;
   } else if (html_name_is(name, "thead")) {
@@ -2248,9 +2248,9 @@ static int on_enter_block(MD_BLOCKTYPE type, void *detail, void *userdata) {
     MD_BLOCK_TABLE_DETAIL *tbl = (MD_BLOCK_TABLE_DETAIL *)detail;
     ensure_newlines(ctx, 2);
     if (ctx->table_model) {
-      viewmd_table_free(ctx->table_model);
+      seemd_table_free(ctx->table_model);
     }
-    ctx->table_model = viewmd_table_new(tbl ? tbl->col_count : 0);
+    ctx->table_model = seemd_table_new(tbl ? tbl->col_count : 0);
     ctx->table_current_row = NULL;
     ctx->in_table_head = FALSE;
     break;
@@ -2372,7 +2372,7 @@ static int on_enter_span(MD_SPANTYPE type, void *detail, void *userdata) {
     MD_SPAN_A_DETAIL *a = (MD_SPAN_A_DETAIL *)detail;
     gchar *href = attr_to_string(a ? &a->href : NULL);
     GtkTextTag *url_tag = gtk_text_buffer_create_tag(ctx->buffer, NULL, NULL);
-    g_object_set_data_full(G_OBJECT(url_tag), VIEWMD_LINK_URL_DATA, href, g_free);
+    g_object_set_data_full(G_OBJECT(url_tag), SEEMD_LINK_URL_DATA, href, g_free);
     push_active_tag_by_name(ctx, TAG_LINK,
                             &g_array_index(ctx->span_stack, SpanState,
                                            ctx->span_stack->len - 1)
@@ -2609,7 +2609,7 @@ static gfloat align_to_xalign(MD_ALIGN align) {
 }
 
 GtkWidget *markdown_create_table_widget(GtkTextChildAnchor *anchor) {
-  ViewmdTable *table;
+  SeemdTable *table;
   GtkWidget *wrapper;
   GtkWidget *grid;
 
@@ -2617,14 +2617,14 @@ GtkWidget *markdown_create_table_widget(GtkTextChildAnchor *anchor) {
     return NULL;
   }
 
-  table = (ViewmdTable *)g_object_get_data(G_OBJECT(anchor), TABLE_MODEL_DATA_KEY);
+  table = (SeemdTable *)g_object_get_data(G_OBJECT(anchor), TABLE_MODEL_DATA_KEY);
   if (!table || table->col_count == 0 || !table->rows || table->rows->len == 0) {
     return NULL;
   }
 
   wrapper = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
   gtk_style_context_add_class(gtk_widget_get_style_context(wrapper),
-                              "viewmd-table");
+                              "seemd-table");
   gtk_widget_set_halign(wrapper, GTK_ALIGN_START);
   gtk_widget_set_margin_top(wrapper, 6);
   gtk_widget_set_margin_bottom(wrapper, 6);
@@ -2633,13 +2633,13 @@ GtkWidget *markdown_create_table_widget(GtkTextChildAnchor *anchor) {
 
   grid = gtk_grid_new();
   gtk_style_context_add_class(gtk_widget_get_style_context(grid),
-                              "viewmd-table-grid");
+                              "seemd-table-grid");
   gtk_grid_set_row_spacing(GTK_GRID(grid), 0);
   gtk_grid_set_column_spacing(GTK_GRID(grid), 0);
   gtk_box_pack_start(GTK_BOX(wrapper), grid, TRUE, TRUE, 0);
 
   for (guint r = 0; r < table->rows->len; r++) {
-    ViewmdTableRow *row = g_ptr_array_index(table->rows, r);
+    SeemdTableRow *row = g_ptr_array_index(table->rows, r);
     if (!row) {
       continue;
     }
@@ -2661,17 +2661,17 @@ GtkWidget *markdown_create_table_widget(GtkTextChildAnchor *anchor) {
       }
 
       gtk_style_context_add_class(gtk_widget_get_style_context(cell),
-                                  "viewmd-table-cell");
+                                  "seemd-table-cell");
       if (row->is_header) {
         gtk_style_context_add_class(gtk_widget_get_style_context(cell),
-                                    "viewmd-table-header-cell");
+                                    "seemd-table-header-cell");
       }
-      g_object_set_data(G_OBJECT(cell), VIEWMD_TABLE_CELL_ROW_DATA,
+      g_object_set_data(G_OBJECT(cell), SEEMD_TABLE_CELL_ROW_DATA,
                         GINT_TO_POINTER((gint)r));
-      g_object_set_data(G_OBJECT(cell), VIEWMD_TABLE_CELL_COL_DATA,
+      g_object_set_data(G_OBJECT(cell), SEEMD_TABLE_CELL_COL_DATA,
                         GINT_TO_POINTER((gint)c));
       gtk_style_context_add_class(gtk_widget_get_style_context(label),
-                                  "viewmd-table-label");
+                                  "seemd-table-label");
       gtk_widget_set_hexpand(cell, FALSE);
       gtk_widget_set_vexpand(cell, FALSE);
       gtk_container_add(GTK_CONTAINER(cell), label);
@@ -2760,7 +2760,7 @@ void markdown_apply_tags(GtkTextBuffer *buffer, const gchar *source) {
     g_string_free(ctx.image_alt, TRUE);
   }
   if (ctx.table_model) {
-    viewmd_table_free(ctx.table_model);
+    seemd_table_free(ctx.table_model);
   }
   if (ctx.heading_text) {
     g_string_free(ctx.heading_text, TRUE);

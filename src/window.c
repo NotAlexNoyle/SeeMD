@@ -12,9 +12,9 @@ typedef struct {
   gint table_col;
 } SearchMatch;
 
-#define TAG_SEARCH_MATCH "viewmd_search_match"
-#define TAG_SEARCH_CURRENT "viewmd_search_current"
-#define TOOLBAR_LABEL_DATA "viewmd-toolbar-label"
+#define TAG_SEARCH_MATCH "seemd_search_match"
+#define TAG_SEARCH_CURRENT "seemd_search_current"
+#define TOOLBAR_LABEL_DATA "seemd-toolbar-label"
 
 static void on_open_clicked(GtkButton *button, gpointer user_data);
 static void on_refresh_clicked(GtkButton *button, gpointer user_data);
@@ -75,7 +75,7 @@ static void set_toolbar_button_label(GtkWidget *button, const gchar *label);
 static void restore_editor_focus(MarkydWindow *self);
 
 static gboolean geometry_debug_enabled(void) {
-  const gchar *v = g_getenv("VIEWMD_DEBUG_GEOMETRY");
+  const gchar *v = g_getenv("SEEMD_DEBUG_GEOMETRY");
   if (!v) {
     v = g_getenv("TRAYMD_DEBUG_GEOMETRY");
   }
@@ -174,15 +174,15 @@ static void set_table_cell_highlight(GtkWidget *cell, gboolean match,
 
   style = gtk_widget_get_style_context(cell);
   if (match) {
-    gtk_style_context_add_class(style, VIEWMD_TABLE_CELL_MATCH_CLASS);
+    gtk_style_context_add_class(style, SEEMD_TABLE_CELL_MATCH_CLASS);
   } else {
-    gtk_style_context_remove_class(style, VIEWMD_TABLE_CELL_MATCH_CLASS);
+    gtk_style_context_remove_class(style, SEEMD_TABLE_CELL_MATCH_CLASS);
   }
 
   if (current) {
-    gtk_style_context_add_class(style, VIEWMD_TABLE_CELL_CURRENT_CLASS);
+    gtk_style_context_add_class(style, SEEMD_TABLE_CELL_CURRENT_CLASS);
   } else {
-    gtk_style_context_remove_class(style, VIEWMD_TABLE_CELL_CURRENT_CLASS);
+    gtk_style_context_remove_class(style, SEEMD_TABLE_CELL_CURRENT_CLASS);
   }
 }
 
@@ -247,9 +247,9 @@ static GtkWidget *lookup_table_cell_widget(GtkWidget *table_widget, gint row,
     for (GList *g = grid_children; g != NULL; g = g->next) {
       GtkWidget *cell = GTK_WIDGET(g->data);
       gint cell_row = GPOINTER_TO_INT(
-          g_object_get_data(G_OBJECT(cell), VIEWMD_TABLE_CELL_ROW_DATA));
+          g_object_get_data(G_OBJECT(cell), SEEMD_TABLE_CELL_ROW_DATA));
       gint cell_col = GPOINTER_TO_INT(
-          g_object_get_data(G_OBJECT(cell), VIEWMD_TABLE_CELL_COL_DATA));
+          g_object_get_data(G_OBJECT(cell), SEEMD_TABLE_CELL_COL_DATA));
       if (cell_row == row && cell_col == col) {
         found = cell;
         break;
@@ -275,9 +275,9 @@ static void clear_table_search_highlight(MarkydWindow *self, gboolean clear_matc
   while (!gtk_text_iter_equal(&iter, &end)) {
     GtkTextChildAnchor *anchor = gtk_text_iter_get_child_anchor(&iter);
     if (anchor &&
-        g_object_get_data(G_OBJECT(anchor), VIEWMD_TABLE_ANCHOR_DATA) != NULL) {
+        g_object_get_data(G_OBJECT(anchor), SEEMD_TABLE_ANCHOR_DATA) != NULL) {
       GtkWidget *table_widget =
-          g_object_get_data(G_OBJECT(anchor), VIEWMD_TABLE_WIDGET_DATA);
+          g_object_get_data(G_OBJECT(anchor), SEEMD_TABLE_WIDGET_DATA);
       if (table_widget && GTK_IS_CONTAINER(table_widget)) {
         GList *wrapper_children =
             gtk_container_get_children(GTK_CONTAINER(table_widget));
@@ -291,11 +291,11 @@ static void clear_table_search_highlight(MarkydWindow *self, gboolean clear_matc
             GtkWidget *cell = GTK_WIDGET(g->data);
             if (clear_match) {
               gtk_style_context_remove_class(gtk_widget_get_style_context(cell),
-                                             VIEWMD_TABLE_CELL_MATCH_CLASS);
+                                             SEEMD_TABLE_CELL_MATCH_CLASS);
             }
             if (clear_current) {
               gtk_style_context_remove_class(gtk_widget_get_style_context(cell),
-                                             VIEWMD_TABLE_CELL_CURRENT_CLASS);
+                                             SEEMD_TABLE_CELL_CURRENT_CLASS);
             }
           }
           g_list_free(grid_children);
@@ -333,8 +333,8 @@ static gboolean resolve_table_match_location(MarkydWindow *self, gint start_offs
   while (!gtk_text_iter_equal(&iter, &end)) {
     GtkTextChildAnchor *anchor = gtk_text_iter_get_child_anchor(&iter);
     if (anchor) {
-      ViewmdTableSearchIndex *index = g_object_get_data(
-          G_OBJECT(anchor), VIEWMD_TABLE_SEARCH_INDEX_DATA);
+      SeemdTableSearchIndex *index = g_object_get_data(
+          G_OBJECT(anchor), SEEMD_TABLE_SEARCH_INDEX_DATA);
       if (index && start_offset < index->end_offset &&
           end_offset > index->start_offset) {
         if (out_anchor) {
@@ -342,10 +342,10 @@ static gboolean resolve_table_match_location(MarkydWindow *self, gint start_offs
         }
 
         if (index->cells) {
-          ViewmdTableSearchCellRange *overlap_cell = NULL;
+          SeemdTableSearchCellRange *overlap_cell = NULL;
           for (guint i = 0; i < index->cells->len; i++) {
-            ViewmdTableSearchCellRange *cell =
-                &g_array_index(index->cells, ViewmdTableSearchCellRange, i);
+            SeemdTableSearchCellRange *cell =
+                &g_array_index(index->cells, SeemdTableSearchCellRange, i);
             if (start_offset >= cell->start_offset && start_offset < cell->end_offset) {
               if (out_row) {
                 *out_row = cell->row;
@@ -396,7 +396,7 @@ static void apply_table_search_match_highlight(MarkydWindow *self) {
     }
 
     table_widget =
-        g_object_get_data(G_OBJECT(match->table_anchor), VIEWMD_TABLE_WIDGET_DATA);
+        g_object_get_data(G_OBJECT(match->table_anchor), SEEMD_TABLE_WIDGET_DATA);
     cell = lookup_table_cell_widget(table_widget, match->table_row, match->table_col);
     if (cell) {
       set_table_cell_highlight(cell, TRUE, FALSE);
@@ -428,7 +428,7 @@ static void jump_to_search_match(MarkydWindow *self, gint index,
   match = &g_array_index(self->search_matches, SearchMatch, index);
   if (match->table_anchor && match->table_row >= 0 && match->table_col >= 0) {
     GtkWidget *table_widget =
-        g_object_get_data(G_OBJECT(match->table_anchor), VIEWMD_TABLE_WIDGET_DATA);
+        g_object_get_data(G_OBJECT(match->table_anchor), SEEMD_TABLE_WIDGET_DATA);
     GtkWidget *cell =
         lookup_table_cell_widget(table_widget, match->table_row, match->table_col);
     if (cell) {
@@ -449,7 +449,7 @@ static void jump_to_search_match(MarkydWindow *self, gint index,
       gboolean scrolled_to_cell = FALSE;
       if (match->table_row >= 0 && match->table_col >= 0) {
         GtkWidget *table_widget = g_object_get_data(G_OBJECT(match->table_anchor),
-                                                    VIEWMD_TABLE_WIDGET_DATA);
+                                                    SEEMD_TABLE_WIDGET_DATA);
         GtkWidget *cell = lookup_table_cell_widget(table_widget, match->table_row,
                                                    match->table_col);
         if (cell) {
@@ -732,7 +732,7 @@ static void on_about_clicked(GtkButton *button, gpointer user_data) {
   gtk_container_add(GTK_CONTAINER(popover), box);
 
   title = gtk_label_new(NULL);
-  gtk_label_set_markup(GTK_LABEL(title), "<b>ViewMD</b>");
+  gtk_label_set_markup(GTK_LABEL(title), "<b>SeeMD</b>");
   gtk_label_set_xalign(GTK_LABEL(title), 0.0f);
   gtk_box_pack_start(GTK_BOX(box), title, FALSE, FALSE, 0);
 
@@ -742,7 +742,7 @@ static void on_about_clicked(GtkButton *button, gpointer user_data) {
   gtk_box_pack_start(GTK_BOX(box), summary, FALSE, FALSE, 0);
 
   details = gtk_label_new(
-      "This is a fork of ViewMD by NotAlexNoyle, with additional features, "
+      "This is a fork of SeeMD by NotAlexNoyle, with additional features, "
       "including GitHub-style preview rendering, HTML-in-Markdown support, "
       "editing, saving, toolbar labels, and improved image sizing.");
   gtk_label_set_xalign(GTK_LABEL(details), 0.0f);
@@ -763,7 +763,7 @@ MarkydWindow *markyd_window_new(MarkydApp *app) {
   self->app = app;
 
   self->window = gtk_application_window_new(app->gtk_app);
-  gtk_window_set_title(GTK_WINDOW(self->window), "ViewMD");
+  gtk_window_set_title(GTK_WINDOW(self->window), "SeeMD");
 
   gtk_window_set_default_size(GTK_WINDOW(self->window), config->window_width,
                               config->window_height);
@@ -774,7 +774,7 @@ MarkydWindow *markyd_window_new(MarkydApp *app) {
   }
 
   if (geometry_debug_enabled()) {
-    g_printerr("ViewMD geometry init: x=%d y=%d w=%d h=%d maximized=%d\n",
+    g_printerr("SeeMD geometry init: x=%d y=%d w=%d h=%d maximized=%d\n",
                config->window_x, config->window_y, config->window_width,
                config->window_height, config->window_maximized);
   }
@@ -794,10 +794,10 @@ MarkydWindow *markyd_window_new(MarkydApp *app) {
   gtk_header_bar_set_show_close_button(GTK_HEADER_BAR(self->header_bar), TRUE);
   gtk_window_set_titlebar(GTK_WINDOW(self->window), self->header_bar);
 
-  self->lbl_title = gtk_button_new_with_label("ViewMD");
+  self->lbl_title = gtk_button_new_with_label("SeeMD");
   gtk_button_set_relief(GTK_BUTTON(self->lbl_title), GTK_RELIEF_NONE);
   gtk_widget_set_focus_on_click(self->lbl_title, FALSE);
-  gtk_widget_set_tooltip_text(self->lbl_title, "About ViewMD");
+  gtk_widget_set_tooltip_text(self->lbl_title, "About SeeMD");
   gtk_widget_set_halign(self->lbl_title, GTK_ALIGN_END);
   gtk_widget_set_margin_start(self->lbl_title, 12);
   gtk_widget_set_margin_end(self->lbl_title, 12);
@@ -981,28 +981,28 @@ void markyd_window_apply_css(MarkydWindow *self) {
       "window {"
       "  background-color: %s;"
       "}"
-      ".viewmd-table-cell {"
+      ".seemd-table-cell {"
       "  background-color: %s;"
       "  border-style: solid;"
       "  border-width: 1px;"
       "  border-color: %s;"
       "}"
-      ".viewmd-table-header-cell {"
+      ".seemd-table-header-cell {"
       "  background-color: %s;"
       "}"
-      ".viewmd-table-cell label {"
+      ".seemd-table-cell label {"
       "  color: %s;"
       "}"
-      ".viewmd-table-cell." VIEWMD_TABLE_CELL_MATCH_CLASS " {"
+      ".seemd-table-cell." SEEMD_TABLE_CELL_MATCH_CLASS " {"
       "  background-color: %s;"
       "}"
-      ".viewmd-table-cell." VIEWMD_TABLE_CELL_MATCH_CLASS " label {"
+      ".seemd-table-cell." SEEMD_TABLE_CELL_MATCH_CLASS " label {"
       "  color: %s;"
       "}"
-      ".viewmd-table-cell." VIEWMD_TABLE_CELL_CURRENT_CLASS " {"
+      ".seemd-table-cell." SEEMD_TABLE_CELL_CURRENT_CLASS " {"
       "  background-color: %s;"
       "}"
-      ".viewmd-table-cell." VIEWMD_TABLE_CELL_CURRENT_CLASS " label {"
+      ".seemd-table-cell." SEEMD_TABLE_CELL_CURRENT_CLASS " label {"
       "  color: %s;"
       "}",
       config->font_family, config->font_size, bg, fg, fg, bg, fg, fg, sel_bg, bg,
@@ -1403,15 +1403,15 @@ static gboolean on_configure_event(GtkWidget *widget, GdkEventConfigure *event,
     if (geometry_debug_enabled()) {
       if (have_extents) {
         g_printerr(
-            "ViewMD configure: event=%dx%d gtk=%dx%d saved=%dx%d frame=%dx%d at (%d,%d)\n",
+            "SeeMD configure: event=%dx%d gtk=%dx%d saved=%dx%d frame=%dx%d at (%d,%d)\n",
             event->width, event->height, gtk_w, gtk_h, width, height,
             frame_extents.width, frame_extents.height, x, y);
       } else {
-        g_printerr("ViewMD configure: event=%dx%d gtk=%dx%d saved=%dx%d at (%d,%d)\n",
+        g_printerr("SeeMD configure: event=%dx%d gtk=%dx%d saved=%dx%d at (%d,%d)\n",
                    event->width, event->height, gtk_w, gtk_h, width, height, x,
                    y);
       }
-      g_printerr("ViewMD saved: x=%d y=%d w=%d h=%d\n", config->window_x,
+      g_printerr("SeeMD saved: x=%d y=%d w=%d h=%d\n", config->window_x,
                  config->window_y, config->window_width, config->window_height);
     }
   }
@@ -1486,7 +1486,7 @@ static GtkWidget *create_settings_dialog(MarkydApp *app) {
   gint row = 0;
 
   dialog = gtk_dialog_new_with_buttons(
-      "ViewMD Settings", GTK_WINDOW(app->window->window),
+      "SeeMD Settings", GTK_WINDOW(app->window->window),
       GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT, "_Cancel",
       GTK_RESPONSE_CANCEL, "_Apply", GTK_RESPONSE_APPLY, NULL);
 

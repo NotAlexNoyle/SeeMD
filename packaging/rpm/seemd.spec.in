@@ -1,11 +1,11 @@
-Name:           viewmd
+Name:           seemd
 Version:        @VERSION@
 Release:        1%{?dist}
 Summary:        Lightweight GTK3 markdown viewer
 
 License:        MIT
 URL:            @URL@
-Source0:        viewmd-%{version}.tar.gz
+Source0:        seemd-%{version}.tar.gz
 
 BuildRequires:  gcc
 BuildRequires:  make
@@ -17,10 +17,10 @@ Requires:       gtk3
 Requires:       webkit2gtk4.1
 
 %description
-ViewMD is a lightweight GTK3 markdown viewer with GitHub-style WebKit preview rendering.
+SeeMD is a lightweight GTK3 markdown viewer with GitHub-style WebKit preview rendering.
 
 %prep
-%autosetup -n viewmd-%{version}
+%autosetup -n seemd-%{version}
 
 %build
 make %{?_smp_mflags}
@@ -30,9 +30,9 @@ rm -rf %{buildroot}
 make install DESTDIR=%{buildroot} PREFIX=%{_prefix}
 
 %files
-%{_bindir}/viewmd
-%{_datadir}/applications/viewmd.desktop
+%{_bindir}/seemd
+%{_datadir}/applications/seemd.desktop
 
 %changelog
-* Thu Jan 01 1970 ViewMD Packager <noreply@example.com> - @VERSION@-1
+* Thu Jan 01 1970 SeeMD Packager <noreply@example.com> - @VERSION@-1
 - Initial package

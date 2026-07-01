@@ -1,7 +1,7 @@
 [Desktop Entry]
-Name=ViewMD
+Name=SeeMD
 Comment=Lightweight markdown viewer
-Exec=viewmd %F
+Exec=seemd %F
 Icon=accessories-text-editor
 Terminal=false
 Type=Application

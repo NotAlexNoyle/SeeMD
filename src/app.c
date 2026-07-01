@@ -27,7 +27,7 @@ MarkydApp *markyd_app_new(void) {
   flags = (GApplicationFlags)(flags | G_APPLICATION_NON_UNIQUE |
                               G_APPLICATION_HANDLES_OPEN);
 
-  self->gtk_app = gtk_application_new("org.viewmd.app", flags);
+  self->gtk_app = gtk_application_new("org.seemd.app", flags);
   self->current_file_path = NULL;
 
   g_signal_connect(self->gtk_app, "activate", G_CALLBACK(on_activate), self);
@@ -69,10 +69,10 @@ static void markyd_app_update_window_title(MarkydApp *self) {
 
   if (self->current_file_path && self->current_file_path[0] != '\0') {
     gchar *base = g_path_get_basename(self->current_file_path);
-    title = g_strdup_printf("ViewMD - %s", base);
+    title = g_strdup_printf("SeeMD - %s", base);
     g_free(base);
   } else {
-    title = g_strdup("ViewMD");
+    title = g_strdup("SeeMD");
   }
 
   gtk_window_set_title(GTK_WINDOW(self->window->window), title);
@@ -111,7 +111,7 @@ static void on_open(GtkApplication *gtk_app, GFile **files, gint n_files,
   }
 
   if (!opened && n_files > 0) {
-    g_printerr("ViewMD: unable to open provided file(s)\n");
+    g_printerr("SeeMD: unable to open provided file(s)\n");
   }
 
   markyd_window_show(self->window);
@@ -126,7 +126,7 @@ static void markyd_app_ensure_window(MarkydApp *self) {
   self->editor = self->window->editor;
 
   markyd_editor_set_content(self->editor,
-                            "# ViewMD\n\nUse the Open button to load a markdown document.");
+                            "# SeeMD\n\nUse the Open button to load a markdown document.");
   markyd_app_update_window_title(self);
 }
 

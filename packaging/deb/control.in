@@ -1,9 +1,9 @@
-Package: viewmd
+Package: seemd
 Version: @VERSION@
 Section: utils
 Priority: optional
 Architecture: @ARCH@
 Maintainer: @MAINTAINER@
 Depends: libgtk-3-0, libwebkit2gtk-4.1-0
-Description: ViewMD - lightweight GTK3 markdown viewer
- ViewMD is a lightweight GTK3 markdown viewer with GitHub-style WebKit preview rendering.
+Description: SeeMD - lightweight GTK3 markdown viewer
+ SeeMD is a lightweight GTK3 markdown viewer with GitHub-style WebKit preview rendering.

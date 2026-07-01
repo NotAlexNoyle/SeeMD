@@ -41,7 +41,7 @@ static gchar *get_url_from_iter_tags(GtkTextIter *iter) {
   for (GSList *node = tags; node != NULL; node = node->next) {
     GtkTextTag *tag = GTK_TEXT_TAG(node->data);
     const gchar *stored =
-        (const gchar *)g_object_get_data(G_OBJECT(tag), VIEWMD_LINK_URL_DATA);
+        (const gchar *)g_object_get_data(G_OBJECT(tag), SEEMD_LINK_URL_DATA);
     if (stored && stored[0] != '\0') {
       url = g_strdup(stored);
       break;
@@ -300,8 +300,8 @@ static void scale_image_widget(GtkWidget *widget, gint max_width) {
     return;
   }
 
-  image = g_object_get_data(G_OBJECT(widget), "viewmd-image-widget-child");
-  orig = g_object_get_data(G_OBJECT(widget), "viewmd-image-orig-pixbuf");
+  image = g_object_get_data(G_OBJECT(widget), "seemd-image-widget-child");
+  orig = g_object_get_data(G_OBJECT(widget), "seemd-image-orig-pixbuf");
   if (!GTK_IS_IMAGE(image) || !GDK_IS_PIXBUF(orig)) {
     return;
   }
@@ -313,9 +313,9 @@ static void scale_image_widget(GtkWidget *widget, gint max_width) {
   }
 
   requested_width = GPOINTER_TO_INT(
-      g_object_get_data(G_OBJECT(widget), "viewmd-image-requested-width"));
+      g_object_get_data(G_OBJECT(widget), "seemd-image-requested-width"));
   requested_height = GPOINTER_TO_INT(
-      g_object_get_data(G_OBJECT(widget), "viewmd-image-requested-height"));
+      g_object_get_data(G_OBJECT(widget), "seemd-image-requested-height"));
 
   compute_image_display_size(ow, oh, requested_width, requested_height, max_width,
                              &display_width, &display_height);
@@ -346,9 +346,9 @@ static void refresh_image_widget_scales(MarkydEditor *self) {
   while (!gtk_text_iter_equal(&iter, &end)) {
     GtkTextChildAnchor *anchor = gtk_text_iter_get_child_anchor(&iter);
     if (anchor &&
-        g_object_get_data(G_OBJECT(anchor), VIEWMD_IMAGE_ANCHOR_DATA) != NULL) {
+        g_object_get_data(G_OBJECT(anchor), SEEMD_IMAGE_ANCHOR_DATA) != NULL) {
       GtkWidget *image_widget =
-          g_object_get_data(G_OBJECT(anchor), VIEWMD_IMAGE_WIDGET_DATA);
+          g_object_get_data(G_OBJECT(anchor), SEEMD_IMAGE_WIDGET_DATA);
       if (image_widget) {
         scale_image_widget(image_widget, max_width);
       }
@@ -371,18 +371,18 @@ static void render_image_widgets(MarkydEditor *self) {
   while (!gtk_text_iter_equal(&iter, &end)) {
     GtkTextChildAnchor *anchor = gtk_text_iter_get_child_anchor(&iter);
     if (anchor &&
-        g_object_get_data(G_OBJECT(anchor), VIEWMD_IMAGE_ANCHOR_DATA) != NULL) {
+        g_object_get_data(G_OBJECT(anchor), SEEMD_IMAGE_ANCHOR_DATA) != NULL) {
       GtkWidget *image_widget =
-          g_object_get_data(G_OBJECT(anchor), VIEWMD_IMAGE_WIDGET_DATA);
+          g_object_get_data(G_OBJECT(anchor), SEEMD_IMAGE_WIDGET_DATA);
       if (!image_widget) {
         const gchar *src =
-            g_object_get_data(G_OBJECT(anchor), VIEWMD_IMAGE_SRC_DATA);
+            g_object_get_data(G_OBJECT(anchor), SEEMD_IMAGE_SRC_DATA);
         const gchar *alt =
-            g_object_get_data(G_OBJECT(anchor), VIEWMD_IMAGE_ALT_DATA);
+            g_object_get_data(G_OBJECT(anchor), SEEMD_IMAGE_ALT_DATA);
         gint requested_width = GPOINTER_TO_INT(
-            g_object_get_data(G_OBJECT(anchor), VIEWMD_IMAGE_WIDTH_DATA));
+            g_object_get_data(G_OBJECT(anchor), SEEMD_IMAGE_WIDTH_DATA));
         gint requested_height = GPOINTER_TO_INT(
-            g_object_get_data(G_OBJECT(anchor), VIEWMD_IMAGE_HEIGHT_DATA));
+            g_object_get_data(G_OBJECT(anchor), SEEMD_IMAGE_HEIGHT_DATA));
         gchar *path = NULL;
 
         if (resolve_image_source_path(self, src, &path)) {
@@ -394,13 +394,13 @@ static void render_image_widgets(MarkydEditor *self) {
             gtk_event_box_set_visible_window(GTK_EVENT_BOX(event_box), FALSE);
             gtk_widget_set_halign(event_box, GTK_ALIGN_START);
             gtk_container_add(GTK_CONTAINER(event_box), image);
-            g_object_set_data(G_OBJECT(event_box), "viewmd-image-widget-child",
+            g_object_set_data(G_OBJECT(event_box), "seemd-image-widget-child",
                               image);
-            g_object_set_data_full(G_OBJECT(event_box), "viewmd-image-orig-pixbuf",
+            g_object_set_data_full(G_OBJECT(event_box), "seemd-image-orig-pixbuf",
                                    orig, g_object_unref);
-            g_object_set_data(G_OBJECT(event_box), "viewmd-image-requested-width",
+            g_object_set_data(G_OBJECT(event_box), "seemd-image-requested-width",
                               GINT_TO_POINTER(requested_width));
-            g_object_set_data(G_OBJECT(event_box), "viewmd-image-requested-height",
+            g_object_set_data(G_OBJECT(event_box), "seemd-image-requested-height",
                               GINT_TO_POINTER(requested_height));
             scale_image_widget(event_box, max_width);
             image_widget = event_box;
@@ -420,7 +420,7 @@ static void render_image_widgets(MarkydEditor *self) {
         gtk_text_view_add_child_at_anchor(GTK_TEXT_VIEW(self->text_view),
                                           image_widget, anchor);
         gtk_widget_show_all(image_widget);
-        g_object_set_data(G_OBJECT(anchor), VIEWMD_IMAGE_WIDGET_DATA, image_widget);
+        g_object_set_data(G_OBJECT(anchor), SEEMD_IMAGE_WIDGET_DATA, image_widget);
         g_free(path);
       } else {
         scale_image_widget(image_widget, max_width);
@@ -442,16 +442,16 @@ static void render_table_widgets(MarkydEditor *self) {
   while (!gtk_text_iter_equal(&iter, &end)) {
     GtkTextChildAnchor *anchor = gtk_text_iter_get_child_anchor(&iter);
     if (anchor &&
-        g_object_get_data(G_OBJECT(anchor), VIEWMD_TABLE_ANCHOR_DATA) != NULL) {
+        g_object_get_data(G_OBJECT(anchor), SEEMD_TABLE_ANCHOR_DATA) != NULL) {
       GtkWidget *table =
-          g_object_get_data(G_OBJECT(anchor), VIEWMD_TABLE_WIDGET_DATA);
+          g_object_get_data(G_OBJECT(anchor), SEEMD_TABLE_WIDGET_DATA);
       if (!table) {
         table = markdown_create_table_widget(anchor);
         if (table) {
           gtk_text_view_add_child_at_anchor(GTK_TEXT_VIEW(self->text_view), table,
                                             anchor);
           gtk_widget_show_all(table);
-          g_object_set_data(G_OBJECT(anchor), VIEWMD_TABLE_WIDGET_DATA, table);
+          g_object_set_data(G_OBJECT(anchor), SEEMD_TABLE_WIDGET_DATA, table);
         }
       }
     }

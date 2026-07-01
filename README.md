@@ -1,8 +1,8 @@
-# ViewMD
+# SeeMD
 
 A lightweight GTK 3 markdown viewer and editor for desktop Linux. It is ideal as your default app for opening `.md` files. Uses the excellent library [md4c](https://github.com/mity/md4c) for markdown parsing and WebKitGTK for GitHub-style preview rendering. This project is a fork of [ViewMD](https://github.com/rabfulton/ViewMD) by NotAlexNoyle.
 
-![ViewMD](assets/screenshot.png)
+![SeeMD](assets/screenshot.png)
 
 ## Features
 
@@ -40,14 +40,14 @@ Code blocks currently support a beta version of keyword highlighting for fenced 
 
 ### Arch Linux (AUR)
 
-https://aur.archlinux.org/packages/viewmd
+https://aur.archlinux.org/packages/seemd
 
 ### Debian/Ubuntu (.deb)
 
 Install a built `.deb` package with:
 
 ```bash
-sudo apt install ./viewmd_*.deb
+sudo apt install ./seemd_*.deb
 ```
 
 ### Fedora/RHEL (.rpm)
@@ -55,12 +55,12 @@ sudo apt install ./viewmd_*.deb
 Install a built `.rpm` package with:
 
 ```bash
-sudo dnf install ./viewmd-*.rpm
+sudo dnf install ./seemd-*.rpm
 ```
 
 ## Usage
 
-Run `viewmd` to start the application.
+Run `seemd` to start the application.
 
 - **Open button**: Open a markdown document
 - **Reload button**: Reload the currently open document from disk
@@ -77,11 +77,11 @@ Run `viewmd` to start the application.
 
 ### Set as Default `.md` Viewer
 
-After installing, associate markdown MIME types with `viewmd.desktop`:
+After installing, associate markdown MIME types with `seemd.desktop`:
 
 ```bash
-xdg-mime default viewmd.desktop text/markdown
-xdg-mime default viewmd.desktop text/x-markdown
+xdg-mime default seemd.desktop text/markdown
+xdg-mime default seemd.desktop text/x-markdown
 ```
 
 Verify the current default:
@@ -105,8 +105,8 @@ sudo make install
 ```
 
 This installs:
-- Binary to `/usr/local/bin/viewmd`
-- Desktop file to `/usr/local/share/applications/viewmd.desktop`
+- Binary to `/usr/local/bin/seemd`
+- Desktop file to `/usr/local/share/applications/seemd.desktop`
 
 ### Uninstallation
 
@@ -134,7 +134,7 @@ sudo dnf install gtk3-devel webkit2gtk4.1-devel
 
 - Arch: `packaging/arch/PKGBUILD`
 - Debian: `packaging/deb/control.in`
-- RPM: `packaging/rpm/viewmd.spec.in`
+- RPM: `packaging/rpm/seemd.spec.in`
 ## License
 
 Released under the [MIT License](LICENSE).
